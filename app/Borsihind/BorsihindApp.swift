@@ -80,6 +80,9 @@ struct BorsihindApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         #endif
+        #if !os(tvOS)
+        // tvOS has no menu bar / keyboard shortcuts. The settings sheet on
+        // tvOS is reached via the in-app gear button only.
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button {
@@ -90,5 +93,6 @@ struct BorsihindApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
         }
+        #endif
     }
 }

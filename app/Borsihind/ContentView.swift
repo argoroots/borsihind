@@ -200,7 +200,9 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(locale.t("Settings"))
+        #if !os(tvOS)
         .keyboardShortcut(",", modifiers: .command)
+        #endif
     }
 
     // MARK: - iPhone (split: price/breakdown on top, swipeable pager on bottom)

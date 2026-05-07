@@ -54,7 +54,10 @@ struct LowestWindowCard: View {
             )
         }
         .buttonStyle(.plain)
+        #if !os(tvOS)
+        // tvOS has no mouse/pointer; the hover tint isn't applicable.
         .onHover { isHovering = $0 }
+        #endif
     }
 
     private var backgroundFill: Color {

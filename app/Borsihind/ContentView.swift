@@ -210,18 +210,16 @@ struct ContentView: View {
     /// (page 2). Page dots show at the bottom of the pager.
     private func phoneLayout(in size: CGSize) -> some View {
         let pad = Self.pad
-        // Single-pad gap on phone — double-pad eats too much vertical real
-        // estate that the pager needs for its 4 cards + page dots.
+        // Single `pad` gap on phone — double-pad eats too much vertical real
+        // estate the pager needs for 4 cards + page dots.
         let chartGap = pad
-        // Reserve a small dot-strip at the bottom of the pager so the page
-        // indicator sits BELOW the content instead of overlaying it.
+        // Bottom padding inside each pager page so the page indicator sits
+        // below the content instead of overlapping it.
         let dotStrip: CGFloat = 48
 
         return VStack(spacing: chartGap) {
-            // Top: price + breakdown — sized to natural content height so it
-            // doesn't visually leak into the pager below (which would hide
-            // the "Cheapest hours" title at the top of the cards page). Inner
-            // spacing trimmed to `pad / 2` so the pager can claim more height.
+            // Top: price + breakdown at natural height so it doesn't bleed
+            // into the pager below.
             VStack(alignment: .leading, spacing: pad / 2) {
                 priceHeader
                 breakdown
@@ -229,14 +227,9 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .top)
             .fixedSize(horizontal: false, vertical: true)
 
-            // Bottom: swipeable pager. Each page reserves vertical space at
-            // top (so chart axis labels aren't clipped by the section above)
-            // and bottom (so chart x-axis labels don't run under the page
-            // indicator dots).
-            // Page header rendered OUTSIDE the TabView — `.page` style
-            // vertically centers each page's content, which would push the
-            // title off-screen if it lived inside the page VStack. Title
-            // text adapts to the current page; chart page has no title slot.
+            // Bottom: header + swipeable pager. Header lives OUTSIDE the
+            // TabView because `.page` style centers each page vertically and
+            // would push an inline title off-screen.
             VStack(spacing: 8) {
                 Text(phonePage == 0 ? locale.t("Cheapest hours") : "")
                     .textCase(.uppercase)
@@ -361,9 +354,7 @@ struct ContentView: View {
     /// bar is the live first slot; `Selected price` when the user has tapped
     /// a future bar in the chart.
     private var priceHeaderTitle: String {
-        let displayedDate = current?.date
-        let liveDate = vm.prices.first?.date
-        let isCurrent = displayedDate == liveDate
+        let isCurrent = current?.date == vm.prices.first?.date
         return locale.t(isCurrent ? "Current price" : "Selected price")
     }
 

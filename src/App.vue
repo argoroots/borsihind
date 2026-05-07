@@ -228,7 +228,8 @@ async function getPrices () {
 function findLowestTimeSpan (prices, span) {
   if (prices.length === 0) return {}
 
-  const pricesSum = prices.map((x) => x.at(1) + x.at(2) + x.at(3) + x.at(4) + x.at(5))
+  const marginalValue = marginal.value || 0
+  const pricesSum = prices.map((x) => x.at(1) + x.at(2) + x.at(3) + x.at(4) + x.at(5) + marginalValue)
 
   let lowestSum = Infinity
   let lowestSumIndex = -1

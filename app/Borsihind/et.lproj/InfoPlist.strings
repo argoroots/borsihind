@@ -1,0 +1,4 @@
+/* See en.lproj/InfoPlist.strings — same override, present so estonian
+   system locales also pick up the bundle name. */
+"CFBundleName" = "Börsihind";
+"CFBundleDisplayName" = "Börsihind";

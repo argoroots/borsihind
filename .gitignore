@@ -1,5 +1,27 @@
-.DS_Store
+# NodeJS
 .env
 dist/
 node_modules/
+
+# macOS
+.DS_Store
+
+# Windows
 Thumbs.db
+
+# Xcode
+## User settings
+xcuserdata/
+
+## Build output
+build/
+DerivedData/
+
+## App packaging
+*.dSYM
+*.dSYM.zip
+*.ipa
+
+# Swift Package Manager
+.build/
+.swiftpm/

@@ -1,0 +1,6 @@
+/* Localized bundle name overrides for macOS menu bar / Cmd-Tab. The
+   synthesized Info.plist defaults CFBundleName to PRODUCT_NAME (ASCII
+   "Borsihind", needed for safe codesign paths); these localized files
+   override it to the user-facing "Börsihind". */
+"CFBundleName" = "Börsihind";
+"CFBundleDisplayName" = "Börsihind";

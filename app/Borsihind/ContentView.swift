@@ -31,6 +31,9 @@ struct ContentView: View {
     @State private var showSettings = false
     /// `nil` = follow the current first bar; otherwise pinned to a tapped bar.
     @State private var selectedDate: Date?
+    /// Drives the Börsihind+ paywall sheet. Set when the user taps a locked
+    /// feature (2/3/4h cheapest cards or the Settings margin row).
+    @State private var showPaywall = false
 
     /// One spacing constant used app-wide: window padding, gaps between
     /// sections, gaps between columns. Tweak to scale all spacing together.
@@ -50,6 +53,10 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.locale) private var locale
+    /// Subscription state — gates Börsihind+ features (2/3/4h windows, custom
+    /// margin, widgets). Free users see the controls but tapping them opens
+    /// the paywall.
+    @Environment(StoreManager.self) private var store
 
     private var plan: Binding<Plan> {
         Binding(
@@ -67,8 +74,19 @@ struct ContentView: View {
 
     private var selectedLowest: Int? { Int(lowestRaw) }
 
+    /// Effective margin used in all calculations. Free users see 0 — we keep
+    /// their stored value untouched so it returns intact when they subscribe.
+    private var effectiveMargin: Double { store.isSubscribed ? marginal : 0 }
+
+    /// Effective interval used in all calculations. 15-min granularity is a
+    /// Börsihind+ feature; free users always see 1h regardless of stored
+    /// preference (preference is preserved for return-when-subscribed).
+    private var effectiveInterval: Interval {
+        store.isSubscribed ? interval.wrappedValue : .oneHour
+    }
+
     private var lowestWindows: [LowestWindow] {
-        vm.lowestWindows(interval: interval.wrappedValue, marginal: marginal)
+        vm.lowestWindows(interval: effectiveInterval, marginal: effectiveMargin)
     }
 
     private var highlightRange: ClosedRange<Int>? {
@@ -91,7 +109,7 @@ struct ContentView: View {
 
     private var currentTotal: Double {
         guard let c = current else { return 0 }
-        return c.componentSum + marginal
+        return c.componentSum + effectiveMargin
     }
 
     var body: some View {
@@ -109,8 +127,12 @@ struct ContentView: View {
             SettingsView(
                 interval: interval,
                 plan: plan,
-                marginal: $marginal
+                marginal: $marginal,
+                onRequestPaywall: { showPaywall = true }
             )
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
         }
         .task { await reload() }
         .task {
@@ -136,16 +158,28 @@ struct ContentView: View {
             selectedDate = nil
             Task { await reload() }
         }
+        .onChange(of: store.isSubscribed) { _, _ in
+            // Subscription flipped → effective interval/margin may change.
+            selectedDate = nil
+            Task { await reload() }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 selectedDate = nil    // refocus → snap back to current bar
-                Task { await reload() }
+                Task {
+                    // Re-scan entitlements so a subscription bought on
+                    // another device (or a fresh-launch desync) is reflected
+                    // immediately when the user comes back to the app.
+                    await store.refresh()
+                    await reload()
+                }
             }
         }
         .onAppear {
             vm.startAutoRefresh(
                 plan: { Plan(rawValue: planRaw) ?? .v1 },
-                interval: { Interval(rawValue: intervalRaw) ?? .fifteenMin }
+                // Free users always fetch the 1-hour dataset; 15-min is gated.
+                interval: { effectiveInterval }
             )
             vm.startMinuteTicker()
         }
@@ -387,13 +421,17 @@ struct ContentView: View {
             BreakdownRow(locale.t("Renewable energy tax"), current?.renewable ?? 0)
             BreakdownRow(locale.t("Supply security fee"),  current?.supplySecurity ?? 0)
             BreakdownRow(locale.t("Excise"),               current?.excise ?? 0)
-            BreakdownRow(locale.t("Seller margin"),        marginal,
+            // Margin is the only row that can carry more than 2 decimals —
+            // matches whatever precision the user typed in Settings.
+            BreakdownRow(locale.t("Seller margin"),        effectiveMargin,
                          fractionDigits: marginalDigits, showDivider: false)
         }
     }
 
+    /// Decimals used for the seller-margin breakdown row only. Minimum 2;
+    /// up to 4 to mirror what the user typed. Other rows are always 2.
     private var marginalDigits: Int {
-        // Match the precision the user typed (up to 4); minimum 2
+        guard store.isSubscribed else { return 2 }
         let s = String(marginal)
         if let dot = s.firstIndex(of: ".") {
             let after = s.distance(from: s.index(after: dot), to: s.endIndex)
@@ -408,14 +446,27 @@ struct ContentView: View {
                 LowestWindowCard(
                     window: window,
                     isSelected: selectedLowest == window.hours,
+                    // 1h is free; 2h/3h/4h require Börsihind+. While the
+                    // subscription state is still resolving on launch, treat
+                    // every card as unlocked (`isReady = false` hides the
+                    // inner data anyway), so we don't flash "Börsihind+"
+                    // tags before the real status is known.
+                    isLocked: store.hasResolvedSubscriptionState
+                        && window.hours > 1
+                        && !store.isSubscribed,
+                    isReady: store.hasResolvedSubscriptionState,
                     nowAverage: vm.nowAverage(
                         forHours: window.hours,
-                        interval: interval.wrappedValue,
-                        marginal: marginal
+                        interval: effectiveInterval,
+                        marginal: effectiveMargin
                     ),
                     onTap: {
-                        let key = String(window.hours)
-                        lowestRaw = (lowestRaw == key) ? "" : key
+                        if window.hours > 1 && !store.isSubscribed {
+                            showPaywall = true
+                        } else {
+                            let key = String(window.hours)
+                            lowestRaw = (lowestRaw == key) ? "" : key
+                        }
                     }
                 )
             }
@@ -425,8 +476,8 @@ struct ContentView: View {
     private var chart: some View {
         PriceChart(
             prices: vm.prices,
-            marginal: marginal,
-            interval: interval.wrappedValue,
+            marginal: effectiveMargin,
+            interval: effectiveInterval,
             highlightRange: highlightRange,
             selectedDate: $selectedDate
         )
@@ -435,17 +486,22 @@ struct ContentView: View {
     // MARK: - Helpers
 
     private func timeRangeLabel(for entry: PriceEntry) -> String {
-        let endDate = entry.date.addingTimeInterval(TimeInterval(interval.wrappedValue.minutes * 60))
-        let fmt = Date.FormatStyle()
-            .hour(.twoDigits(amPM: .omitted))
-            .minute(.twoDigits)
-        return "\(entry.date.formatted(fmt)) – \(endDate.formatted(fmt))"
+        let endDate = entry.date.addingTimeInterval(TimeInterval(effectiveInterval.minutes * 60))
+        return "\(entry.date.formatted(Self.hourMinuteFormat)) – \(endDate.formatted(Self.hourMinuteFormat))"
     }
+
+    /// Verbatim 24-hour HH:mm so 13:00 never renders as "01:00" regardless
+    /// of locale or region settings. Same pattern as LowestWindowCard.
+    private static let hourMinuteFormat = Date.VerbatimFormatStyle(
+        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+        timeZone: .current,
+        calendar: .current
+    )
 
     private func reload() async {
         await vm.load(
             plan: Plan(rawValue: planRaw) ?? .v1,
-            interval: Interval(rawValue: intervalRaw) ?? .fifteenMin
+            interval: effectiveInterval
         )
     }
 }

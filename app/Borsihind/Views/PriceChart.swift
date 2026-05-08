@@ -185,7 +185,7 @@ struct PriceChart: View {
                         AxisTick(stroke: StrokeStyle(lineWidth: 1))
                     }
                     AxisValueLabel(
-                        format: .dateTime.hour(.twoDigits(amPM: .omitted)),
+                        format: Self.hourFormat,
                         centered: true,
                         collisionResolution: .greedy
                     )
@@ -295,4 +295,12 @@ struct PriceChart: View {
         case .electricity:  return palette[5]
         }
     }
+
+    /// Verbatim 24-hour `HH` axis label so 13:00 never renders as "01"
+    /// regardless of locale or region. Same pattern as LowestWindowCard.
+    private static let hourFormat = Date.VerbatimFormatStyle(
+        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))",
+        timeZone: .current,
+        calendar: .current
+    )
 }

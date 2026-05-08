@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3D758BF22FADD0D3008601D1 /* Borsihind.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3D758BF12FADD0D3008601D1 /* Borsihind.storekit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		3D758BF12FADD0D3008601D1 /* Borsihind.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Borsihind.storekit; sourceTree = "<group>"; };
 		3DC417522FAB63920085B651 /* Borsihind.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Borsihind.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -32,6 +37,7 @@
 		3DC417492FAB63920085B651 = {
 			isa = PBXGroup;
 			children = (
+				3D758BF12FADD0D3008601D1 /* Borsihind.storekit */,
 				3DC417542FAB63920085B651 /* Borsihind */,
 				3DC417532FAB63920085B651 /* Products */,
 			);
@@ -110,6 +116,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3D758BF22FADD0D3008601D1 /* Borsihind.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,7 +256,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -299,7 +306,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;

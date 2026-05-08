@@ -8,6 +8,9 @@ struct SettingsView: View {
     @Binding var interval: Interval
     @Binding var plan: Plan
     @Binding var marginal: Double
+    /// Called when the user taps the locked margin row. Parent dismisses
+    /// the sheet (or stacks it) and presents the paywall.
+    var onRequestPaywall: () -> Void
 
     @AppStorage("language") private var languageRaw: String = Language.et.rawValue
     /// Mirrors `ContentView`'s flag — tapping the disclaimer row resets it so
@@ -15,6 +18,7 @@ struct SettingsView: View {
     @AppStorage("disclaimerShown") private var disclaimerShown: Bool = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(StoreManager.self) private var store
 
     /// Compute locale directly from `@AppStorage` so the picker updates strings
     /// live, regardless of whether the parent's `\.locale` env reaches us
@@ -30,6 +34,22 @@ struct SettingsView: View {
         )
     }
 
+    /// Hand off to the parent's paywall presenter. Dismisses the Settings
+    /// sheet first, then on macOS waits a frame for the dismiss animation
+    /// to release the sheet stack — without this, the new paywall sheet
+    /// races the dismissing settings sheet and silently fails to appear.
+    private func requestPaywall() {
+        dismiss()
+        #if os(macOS)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            onRequestPaywall()
+        }
+        #else
+        onRequestPaywall()
+        #endif
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -42,28 +62,97 @@ struct SettingsView: View {
                         }
                     }
 
-                    // Interval, plan and seller margin together — all three
-                    // affect what's shown in the price breakdown / chart.
+                    // Plan, margin, interval together — all three affect
+                    // what's shown in the price breakdown / chart. Interval
+                    // last (granularity preference, set once and forgotten).
                     Section {
-                        Picker(locale.t("Interval"), selection: $interval) {
-                            ForEach(Interval.allCases) { i in
-                                Text(locale.t(i.labelKey)).tag(i)
-                            }
-                        }
-
                         Picker(locale.t("Grid service plan"), selection: $plan) {
                             ForEach(Plan.allCases) { p in
                                 Text(p.label).tag(p)
                             }
                         }
 
-                        LabeledContent(locale.t("Seller margin")) {
-                            TextField("", value: $marginal, format: .number.precision(.fractionLength(0...4)).locale(locale))
-                                .multilineTextAlignment(.trailing)
-                                #if os(iOS)
-                                .keyboardType(.decimalPad)
-                                #endif
-                                .frame(maxWidth: 100)
+                        if store.isSubscribed {
+                            LabeledContent(locale.t("Seller margin")) {
+                                TextField("", value: $marginal, format: .number.precision(.fractionLength(2...4)).locale(locale))
+                                    .multilineTextAlignment(.trailing)
+                                    #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                    #endif
+                                    .frame(maxWidth: 100)
+                            }
+                        } else {
+                            // Locked row — looks like other settings rows but
+                            // tapping triggers the paywall via the parent.
+                            Button {
+                                requestPaywall()
+                            } label: {
+                                HStack {
+                                    Text(locale.t("Seller margin"))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Text("Börsihind+")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tint)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if store.isSubscribed {
+                            Picker(locale.t("Interval"), selection: $interval) {
+                                ForEach(Interval.allCases) { i in
+                                    Text(locale.t(i.labelKey)).tag(i)
+                                }
+                            }
+                        } else {
+                            // 15-min granularity is gated; free users see the
+                            // row but it shows the locked interval (1h) and
+                            // routes to the paywall.
+                            Button {
+                                requestPaywall()
+                            } label: {
+                                HStack {
+                                    Text(locale.t("Interval"))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Text("Börsihind+")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tint)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Subscription management section — only visible to
+                    // active subscribers. Tapping "Börsihind+" reopens the
+                    // same paywall users saw on first subscribe.
+                    // SubscriptionStoreView handles the active-subscriber
+                    // case natively: it shows current plan, lets the user
+                    // switch tiers, and includes an Apple-rendered button to
+                    // jump to the system management UI for cancellation.
+                    if store.isSubscribed {
+                        Section {
+                            Button {
+                                requestPaywall()
+                            } label: {
+                                HStack {
+                                    Text("Börsihind+")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.tertiary)
+                                        .font(.subheadline)
+                                }
+                                // Inside the label so the empty Spacer area
+                                // is part of the hit region — outside the
+                                // label, the modifier doesn't widen taps.
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

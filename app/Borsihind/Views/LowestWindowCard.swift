@@ -8,6 +8,14 @@ import SwiftUI
 struct LowestWindowCard: View {
     let window: LowestWindow
     let isSelected: Bool
+    /// True when the window is gated behind Börsihind+ (2/3/4h windows for
+    /// non-subscribers). The card still renders, but with a lock icon and
+    /// tap routes to the paywall.
+    let isLocked: Bool
+    /// `false` while the subscription state hasn't been resolved yet — the
+    /// card renders just the hour badge and reserves the right-side space
+    /// without flashing Börsihind+ chrome that may be wrong.
+    let isReady: Bool
     /// Average price of the same number of consecutive hours starting now —
     /// the apples-to-apples baseline for the savings %. `nil` when not enough
     /// future data is available.
@@ -25,26 +33,50 @@ struct LowestWindowCard: View {
                     .foregroundStyle(Color.green.opacity(0.6))
                     .frame(minWidth: 36)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text(window.start, format: Self.timeFormat)
-                            .font(.headline.bold())
-                        Text("–")
-                            .font(.headline)
-                        Text(window.end, format: Self.timeFormat)
-                            .font(.headline.bold())
-                    }
+                if !isReady {
+                    // Subscription state not yet known — reserve the slot
+                    // but render nothing so we don't flash a Börsihind+ tag
+                    // that may be wrong. Color.clear keeps the card height
+                    // stable so the layout doesn't jump when content lands.
+                    Color.clear
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                } else if isLocked {
+                    // Locked card: hide the actual time/price (the answer
+                    // users pay for) and show a marketing-friendly status
+                    // line — "Save up to N%" or "Same as now". Börsihind+
+                    // wordmark on the right is the gate.
                     HStack {
-                        Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
+                        Text(savingsTeaser)
                             .font(.headline.weight(.regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
                         Spacer()
-                        Text(percentString)
-                            .font(.headline.weight(.regular))
-                            .foregroundStyle(.secondary)
+                        Text("Börsihind+")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(window.start, format: Self.timeFormat)
+                                .font(.headline.bold())
+                            Text("–")
+                                .font(.headline)
+                            Text(window.end, format: Self.timeFormat)
+                                .font(.headline.bold())
+                        }
+                        HStack {
+                            Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
+                                .font(.headline.weight(.regular))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(percentString)
+                                .font(.headline.weight(.regular))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(8)
             .contentShape(RoundedRectangle(cornerRadius: 8))
@@ -66,20 +98,49 @@ struct LowestWindowCard: View {
         return Color.clear
     }
 
-    /// How much cheaper the window is vs. running for the same N hours
-    /// starting now. Positive when the window saves money; negative when
-    /// it would actually be more expensive than running now.
+    /// Savings % vs running the same N hours starting now. Computed from
+    /// the raw (full-precision) prices, then rounded to a whole percent for
+    /// display. Returns nil when there isn't enough future data.
+    private var roundedDiffPercent: Int? {
+        guard let baseline = nowAverage, baseline > 0 else { return nil }
+        let pct = (baseline - window.averagePrice) / baseline * 100
+        return Int(pct.rounded())
+    }
+
+    /// Display string for the unlocked savings %.
+    ///   - window cheaper → "+N%"
+    ///   - window pricier → "N% kõrgem" (defensive — shouldn't normally hit
+    ///     since the cheapest finder picks the minimum)
+    ///   - equal after rounding → "0%"
     private var percentString: String {
-        guard let baseline = nowAverage, baseline > 0 else { return "—" }
-        let diff = (baseline - window.averagePrice) / baseline * 100
-        let rounded = Int(diff.rounded())
-        if rounded > 0 { return "−\(rounded)%" }   // window is cheaper → "−N% vs now"
-        if rounded < 0 { return "+\(-rounded)%" }  // window is pricier → "+N% vs now"
+        guard let pct = roundedDiffPercent else { return "—" }
+        if pct > 0 { return "+\(pct)%" }
+        if pct < 0 {
+            return locale.t("%@% higher").replacingOccurrences(of: "%@", with: String(-pct))
+        }
         return "0%"
     }
 
-    /// 24-hour HH:mm regardless of locale, matching the chart axis style.
-    private static let timeFormat = Date.FormatStyle(date: .omitted, time: .shortened)
-        .hour(.twoDigits(amPM: .omitted))
-        .minute(.twoDigits)
+    /// Status line for locked cards. Just states whether there's a cheaper
+    /// future window or not — the actual time/price is what subscription
+    /// unlocks. Math note: the cheapest-window finder picks the minimum
+    /// average, so savings is never strictly negative; rounding to whole-%
+    /// gives us a clean binary "is there a cheaper window or is now already
+    /// the cheapest".
+    private var savingsTeaser: String {
+        let savings = roundedDiffPercent ?? 0
+        return savings > 0
+            ? locale.t("Cheaper window available")
+            : locale.t("Already cheapest now")
+    }
+
+    /// Verbatim 24-hour HH:mm. `Date.VerbatimFormatStyle` with
+    /// `clock: .twentyFourHour` is the only reliable way to force 24-hour
+    /// across every locale and region — the locale-Components hourCycle
+    /// trick is honored inconsistently on macOS depending on system region.
+    private static let timeFormat = Date.VerbatimFormatStyle(
+        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+        timeZone: .current,
+        calendar: .current
+    )
 }

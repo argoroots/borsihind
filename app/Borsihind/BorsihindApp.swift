@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 #if os(iOS)
 import UIKit
 #endif
@@ -46,6 +47,11 @@ final class WindowSceneDelegate: NSObject, UIWindowSceneDelegate {
 /// command. iOS picks up additional per-scene config via `AppDelegate` above.
 @main
 struct BorsihindApp: App {
+    /// Shared StoreKit 2 subscription manager. Bootstrapped on first
+    /// appearance of the root scene; status kept fresh by
+    /// `subscriptionStatusTask` (iOS 17+/macOS 14+).
+    @State private var store = StoreManager()
+
     #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #endif
@@ -65,16 +71,25 @@ struct BorsihindApp: App {
         #if os(macOS)
         ContentView()
             .environment(\.locale, locale)
+            .environment(store)
+//            .frame(minWidth: 1280, minHeight: 768)
             .frame(minWidth: 500, minHeight: 700)
         #else
         ContentView()
             .environment(\.locale, locale)
+            .environment(store)
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
             content
+                .task { store.bootstrap() }
+                // Modern lifecycle hook: fires on background renewals,
+                // refunds, family-sharing changes, billing-grace transitions.
+                .subscriptionStatusTask(for: StoreManager.subscriptionGroupID) { _ in
+                    await store.refresh()
+                }
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)

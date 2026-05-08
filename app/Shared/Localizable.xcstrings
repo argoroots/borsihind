@@ -14,16 +14,6 @@
     "%@ c/kWh" : {
 
     },
-    "%@: %@" : {
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@"
-          }
-        }
-      }
-    },
     "%@% higher" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -3,7 +3,7 @@ import Foundation
 /// One row of price data, after conversion from €/MWh to c/kWh.
 /// Stack order (bottom → top): excise, supplySecurity, renewable, transmission, electricity.
 /// `marginal` is added separately at the bottom from user input.
-struct PriceEntry: Identifiable, Hashable {
+struct PriceEntry: Identifiable, Hashable, Sendable {
     let date: Date
     let electricity: Double
     let transmission: Double
@@ -42,7 +42,7 @@ struct PriceEntry: Identifiable, Hashable {
     }
 }
 
-enum Plan: String, CaseIterable, Identifiable {
+enum Plan: String, CaseIterable, Identifiable, Sendable {
     case v1 = "V1"
     case v2 = "V2"
     case v4 = "V4"
@@ -60,7 +60,7 @@ enum Plan: String, CaseIterable, Identifiable {
     }
 }
 
-enum Interval: String, CaseIterable, Identifiable {
+enum Interval: String, CaseIterable, Identifiable, Sendable {
     case fifteenMin = "15min"
     case oneHour = "1h"
 
@@ -81,7 +81,7 @@ enum Interval: String, CaseIterable, Identifiable {
 }
 
 /// 1h/2h/3h/4h cheapest-window result.
-struct LowestWindow: Identifiable, Hashable {
+struct LowestWindow: Identifiable, Hashable, Sendable {
     let hours: Int            // 1, 2, 3, 4
     let startIndex: Int
     let endIndex: Int

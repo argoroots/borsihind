@@ -42,27 +42,28 @@ struct LowestWindowCard: View {
                         .frame(maxWidth: .infinity, minHeight: 36)
                 } else if isLocked {
                     // Locked card: hide the actual time/price (the answer
-                    // users pay for) and show a marketing-friendly status
-                    // line — "Save up to N%" or "Same as now". Börsihind+
-                    // wordmark on the right is the gate.
+                    // users pay for). Single subdued line vertically
+                    // centered with the badge. minHeight matches the
+                    // unlocked card's two-line height so all rows in the
+                    // list have the same height.
                     HStack {
                         Text(savingsTeaser)
-                            .font(.headline.weight(.regular))
+                            .font(.subheadline)
                             .foregroundStyle(.primary)
                         Spacer()
                         Text("Börsihind+")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tint)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(window.start, format: Self.timeFormat)
+                            Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
                                 .font(.headline.bold())
                             Text("–")
                                 .font(.headline)
-                            Text(window.end, format: Self.timeFormat)
+                            Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
                                 .font(.headline.bold())
                         }
                         HStack {
@@ -134,13 +135,4 @@ struct LowestWindowCard: View {
             : locale.t("Already cheapest now")
     }
 
-    /// Verbatim 24-hour HH:mm. `Date.VerbatimFormatStyle` with
-    /// `clock: .twentyFourHour` is the only reliable way to force 24-hour
-    /// across every locale and region — the locale-Components hourCycle
-    /// trick is honored inconsistently on macOS depending on system region.
-    private static let timeFormat = Date.VerbatimFormatStyle(
-        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-        timeZone: .current,
-        calendar: .current
-    )
 }

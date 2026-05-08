@@ -1,14 +1,14 @@
 import Foundation
 
 /// Errors thrown by `PriceService`.
-enum PriceServiceError: Error {
+enum PriceServiceError: Error, Sendable {
     case invalidURL
     case invalidResponse
 }
 
 /// Networking-only client for the public price JSON files served from S3.
 /// Stateless — one instance per call site is fine.
-struct PriceService {
+struct PriceService: Sendable {
     static let baseURL = "https://borsihind.s3.eu-central-1.amazonaws.com"
 
     /// Fetches the entire price file. Filtering by current time is the

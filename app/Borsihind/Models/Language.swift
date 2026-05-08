@@ -43,3 +43,22 @@ extension Locale {
         return bundle
     }
 }
+
+extension Date.VerbatimFormatStyle {
+    /// 24-hour `HH:mm`. Verbatim — bypasses locale/region so 13:00 never
+    /// renders as "01:00". The locale-`Components` `hourCycle` trick is
+    /// honored inconsistently on macOS depending on system region settings.
+    static let hourMinute24 = Date.VerbatimFormatStyle(
+        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+        timeZone: .current,
+        calendar: .current
+    )
+
+    /// 24-hour `HH` (no minutes). Same locale-stability rationale as
+    /// `hourMinute24`. Used by chart axis labels.
+    static let hour24 = Date.VerbatimFormatStyle(
+        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))",
+        timeZone: .current,
+        calendar: .current
+    )
+}

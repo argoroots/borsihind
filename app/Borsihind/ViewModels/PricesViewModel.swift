@@ -103,8 +103,8 @@ final class PricesViewModel {
         return sum / Double(span)
     }
 
-    /// Direct port of findLowestTimeSpan from src/App.vue:228-267.
-    /// Returns 1h/2h/3h/4h cheapest windows including the marginal.
+    /// 1h/2h/3h/4h cheapest windows in the visible (future) data, with the
+    /// seller margin folded into each slot's price.
     func lowestWindows(interval: Interval, marginal: Double) -> [LowestWindow] {
         let visible = prices
         guard !visible.isEmpty else { return [] }

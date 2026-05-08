@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-/// Stacked bar chart of upcoming prices, matching the Vue web app's layout.
+/// Stacked bar chart of upcoming prices, one bar per slot.
 /// Each bar is one slot (15-min or 1h); the six layered components stack
 /// bottom-to-top. Three bar styles: normal blue, green for the highlighted
 /// "cheapest N-hour window", amber for the bar pinned via `selectedDate`
@@ -32,7 +32,8 @@ struct PriceChart: View {
         case selected     // yellow/amber (single tapped bar — wins over green)
     }
 
-    /// Tailwind blue-{800,600,500,400,300,200} from src/App.vue:20-21.
+    /// Tailwind blue-{800, 600, 500, 400, 300, 200}. Bottom (marginal) is the
+    /// darkest shade; top (electricity) is the lightest.
     private static let blueShades: [Color] = [
         Color(red: 0.118, green: 0.251, blue: 0.686),
         Color(red: 0.149, green: 0.388, blue: 0.922),
@@ -185,7 +186,7 @@ struct PriceChart: View {
                         AxisTick(stroke: StrokeStyle(lineWidth: 1))
                     }
                     AxisValueLabel(
-                        format: Self.hourFormat,
+                        format: Date.VerbatimFormatStyle.hour24,
                         centered: true,
                         collisionResolution: .greedy
                     )
@@ -296,11 +297,4 @@ struct PriceChart: View {
         }
     }
 
-    /// Verbatim 24-hour `HH` axis label so 13:00 never renders as "01"
-    /// regardless of locale or region. Same pattern as LowestWindowCard.
-    private static let hourFormat = Date.VerbatimFormatStyle(
-        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))",
-        timeZone: .current,
-        calendar: .current
-    )
 }

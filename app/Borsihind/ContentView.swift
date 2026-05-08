@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Root screen of the app. Picks one of three layouts based on device and
 /// window aspect ratio:
@@ -16,7 +19,12 @@ struct ContentView: View {
     @AppStorage("plan") private var planRaw: String = Plan.v1.rawValue
     @AppStorage("interval") private var intervalRaw: String = Interval.fifteenMin.rawValue
     @AppStorage("marginal") private var marginal: Double = 0
-    @AppStorage("lowest") private var lowestRaw: String = ""
+    /// Selected cheapest window in hours, persisted across launches.
+    /// Default is `"1"` so new users see the 1-hour window highlighted in
+    /// the chart on first launch — that's the free-tier feature and the
+    /// fastest "this is what the app does" demo. Setting it to `""` clears
+    /// the highlight (toggling the same card off).
+    @AppStorage("lowest") private var lowestRaw: String = "1"
     /// Which iPhone pager page was last shown — 0 = cheapest hours, 1 = chart.
     /// Persisted so the user returns to the same page across launches.
     @AppStorage("phonePage") private var phonePage: Int = 0
@@ -162,6 +170,16 @@ struct ContentView: View {
             // Subscription flipped → effective interval/margin may change.
             selectedDate = nil
             Task { await reload() }
+            updateWidgetSnapshot()
+        }
+        .onChange(of: lowestRaw) { _, _ in
+            // User picked a different cheapest-window tier → push the new
+            // selection into the widget snapshot.
+            updateWidgetSnapshot()
+        }
+        .onChange(of: marginal) { _, _ in
+            // Margin edit changes every total → keep widget in sync.
+            updateWidgetSnapshot()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -189,6 +207,13 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             showSettings = true
+        }
+        // Deep link from the widget. Tapping a free-tier widget opens the
+        // app with `borsihind://paywall`; we present the paywall sheet.
+        .onOpenURL { url in
+            if url.scheme == "borsihind", url.host == "paywall" {
+                showPaywall = true
+            }
         }
     }
 
@@ -246,26 +271,25 @@ struct ContentView: View {
     /// (page 2). Page dots show at the bottom of the pager.
     private func phoneLayout(in size: CGSize) -> some View {
         let pad = Self.pad
-        // Single `pad` gap on phone — double-pad eats too much vertical real
-        // estate the pager needs for 4 cards + page dots.
-        let chartGap = pad
-        // Bottom padding inside each pager page so the page indicator sits
-        // below the content instead of overlapping it.
-        let dotStrip: CGFloat = 48
 
-        return VStack(spacing: chartGap) {
-            // Top: price + breakdown at natural height so it doesn't bleed
-            // into the pager below.
+        // 50/50 vertical split. Both halves use `maxHeight: .infinity` and
+        // share the available space evenly. Bottom-edge padding is dropped
+        // so the TabView's page-indicator dots sit near the screen bottom
+        // and visually align with the floating gear button (in body's
+        // ZStack at `.padding(.bottom, 24)`).
+        return VStack(spacing: 0) {
+            // Top half — price + breakdown, vertically centered in its slot.
             VStack(alignment: .leading, spacing: pad / 2) {
                 priceHeader
                 breakdown
             }
-            .frame(maxWidth: .infinity, alignment: .top)
-            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, pad)
+            .padding(.top, pad)
 
-            // Bottom: header + swipeable pager. Header lives OUTSIDE the
-            // TabView because `.page` style centers each page vertically and
-            // would push an inline title off-screen.
+            // Bottom half — header + swipeable pager. Header lives OUTSIDE
+            // the TabView because `.page` style vertically centers each
+            // page's content and would push an inline title off-screen.
             VStack(spacing: 8) {
                 Text(phonePage == 0 ? locale.t("Cheapest hours") : "")
                     .textCase(.uppercase)
@@ -276,13 +300,20 @@ struct ContentView: View {
                 TabView(selection: $phonePage) {
                     cardsColumn
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.bottom, dotStrip)
+                        // `.padding(.top, 8)` keeps the selected card's
+                        // rounded green background from being clipped at
+                        // the TabView page's top edge.
+                        // `.padding(.bottom, 32)` reserves room above the
+                        // page-indicator dots so the last card doesn't
+                        // overlap them.
+                        .padding(.top, 8)
+                        .padding(.bottom, 32)
                         .tag(0)
 
                     chart
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.top, 12)
-                        .padding(.bottom, dotStrip)
+                        .padding(.bottom, 32)
                         .tag(1)
                 }
                 #if os(iOS)
@@ -291,8 +322,9 @@ struct ContentView: View {
                 #endif
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, pad)
+            .padding(.top, pad)
         }
-        .padding(pad)
     }
 
     // MARK: - iPad portrait (compact 50/50)
@@ -433,11 +465,9 @@ struct ContentView: View {
     private var marginalDigits: Int {
         guard store.isSubscribed else { return 2 }
         let s = String(marginal)
-        if let dot = s.firstIndex(of: ".") {
-            let after = s.distance(from: s.index(after: dot), to: s.endIndex)
-            return min(4, max(2, after))
-        }
-        return 2
+        guard let dot = s.firstIndex(of: ".") else { return 2 }
+        let after = s.distance(from: s.index(after: dot), to: s.endIndex)
+        return min(4, max(2, after))
     }
 
     private var cardsColumn: some View {
@@ -487,22 +517,90 @@ struct ContentView: View {
 
     private func timeRangeLabel(for entry: PriceEntry) -> String {
         let endDate = entry.date.addingTimeInterval(TimeInterval(effectiveInterval.minutes * 60))
-        return "\(entry.date.formatted(Self.hourMinuteFormat)) – \(endDate.formatted(Self.hourMinuteFormat))"
+        let fmt = Date.VerbatimFormatStyle.hourMinute24
+        return "\(entry.date.formatted(fmt)) – \(endDate.formatted(fmt))"
     }
-
-    /// Verbatim 24-hour HH:mm so 13:00 never renders as "01:00" regardless
-    /// of locale or region settings. Same pattern as LowestWindowCard.
-    private static let hourMinuteFormat = Date.VerbatimFormatStyle(
-        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-        timeZone: .current,
-        calendar: .current
-    )
 
     private func reload() async {
         await vm.load(
             plan: Plan(rawValue: planRaw) ?? .v1,
             interval: effectiveInterval
         )
+        updateWidgetSnapshot()
+    }
+
+    /// Push the latest visible state to the App Group so the widget process
+    /// can render up-to-date data without re-fetching from the network.
+    /// Cheap — runs synchronously on the main actor against a UserDefaults.
+    private func updateWidgetSnapshot() {
+        SharedStorage.isSubscribed = store.isSubscribed
+        guard let bar = vm.prices.first else { return }
+
+        // Free users are pinned to 1h (longer windows are gated); premium
+        // users get whatever they tapped, defaulting to 1h.
+        let hours = store.isSubscribed ? (selectedLowest.map { (1...4).contains($0) ? $0 : 1 } ?? 1) : 1
+
+        // The widget always renders 1-hour granularity regardless of the
+        // user's selected interval. Compute the cheapest N consecutive
+        // hours directly on the hour-aggregated data so the highlight
+        // aligns exactly to the visible bar boundaries.
+        let (hourlyStart, hourlyTotals) = widgetHourlyTotals()
+        let (cheapestIdx, cheapestAvg) = cheapestHourWindow(in: hourlyTotals, span: hours)
+        let cheapestStart = cheapestIdx.flatMap { idx in
+            hourlyStart?.addingTimeInterval(TimeInterval(idx * 3600))
+        }
+
+        SharedStorage.writeSnapshot(.init(
+            currentTotal: bar.componentSum + effectiveMargin,
+            currentStart: bar.date,
+            currentEnd: bar.date.addingTimeInterval(TimeInterval(effectiveInterval.minutes * 60)),
+            cheapestHours: hours,
+            cheapestStart: cheapestStart,
+            cheapestAverage: cheapestAvg,
+            hourlyTotals: hourlyTotals,
+            hourlyStart: hourlyStart,
+            cheapestHighlightStart: cheapestIdx,
+            writtenAt: Date()
+        ))
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
+    /// Sliding-window minimum over hourly aggregates. Returns the start
+    /// index and the window's average c/kWh, or `(nil, nil)` when there
+    /// isn't a full N-hour run available.
+    private func cheapestHourWindow(in totals: [Double], span: Int) -> (idx: Int?, avg: Double?) {
+        guard span > 0, totals.count >= span else { return (nil, nil) }
+        var lowestSum = Double.infinity
+        var lowestIdx = 0
+        for i in 0...(totals.count - span) {
+            let sum = totals[i..<(i + span)].reduce(0, +)
+            if sum < lowestSum {
+                lowestSum = sum
+                lowestIdx = i
+            }
+        }
+        return (lowestIdx, lowestSum / Double(span))
+    }
+
+    /// Hour-aggregated total prices (margin + VAT included) for the widget.
+    /// If the active interval is 1h, this passes through; on 15-min the
+    /// four slots per hour are averaged. No cap — Nord Pool publishes
+    /// tomorrow at ~14:00, so the chart can carry up to ~48 hours.
+    private func widgetHourlyTotals() -> (start: Date?, totals: [Double]) {
+        let cal = Calendar.current
+        let grouped = Dictionary(grouping: vm.prices) { entry in
+            cal.date(from: cal.dateComponents([.year, .month, .day, .hour], from: entry.date))
+                ?? entry.date
+        }
+        let sortedKeys = grouped.keys.sorted()
+        let totals = sortedKeys.map { key -> Double in
+            let entries = grouped[key, default: []]
+            let sum = entries.reduce(0.0) { $0 + $1.componentSum + effectiveMargin }
+            return sum / Double(max(entries.count, 1))
+        }
+        return (sortedKeys.first, totals)
     }
 }
 

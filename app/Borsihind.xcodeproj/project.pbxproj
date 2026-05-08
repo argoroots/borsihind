@@ -8,14 +8,68 @@
 
 /* Begin PBXBuildFile section */
 		3D758BF22FADD0D3008601D1 /* Borsihind.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3D758BF12FADD0D3008601D1 /* Borsihind.storekit */; };
+		3D758BFC2FAE13EF008601D1 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */; };
+		3D758BFE2FAE13EF008601D1 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */; };
+		3D758C092FAE13F1008601D1 /* BorsihindWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */; platformFilters = (ios, maccatalyst, macos, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3D758C072FAE13F1008601D1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DC4174A2FAB63920085B651 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3D758BF82FAE13EF008601D1;
+			remoteInfo = BorsihindWidgetsExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3D758C0E2FAE13F1008601D1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3D758C092FAE13F1008601D1 /* BorsihindWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		3D758BF12FADD0D3008601D1 /* Borsihind.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Borsihind.storekit; sourceTree = "<group>"; };
+		3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BorsihindWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
+		3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
+		3D758CD62FAE1965008601D1 /* BorsihindWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BorsihindWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		3DC417522FAB63920085B651 /* Borsihind.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Borsihind.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3D758C0A2FAE13F1008601D1 /* Exceptions for "BorsihindWidgets" folder in "BorsihindWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3D758C0A2FAE13F1008601D1 /* Exceptions for "BorsihindWidgets" folder in "BorsihindWidgetsExtension" target */,
+			);
+			path = BorsihindWidgets;
+			sourceTree = "<group>";
+		};
+		3D7700000000000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		3DC417542FAB63920085B651 /* Borsihind */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Borsihind;
@@ -24,6 +78,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3D758BF62FAE13EF008601D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3D758BFE2FAE13EF008601D1 /* SwiftUI.framework in Frameworks */,
+				3D758BFC2FAE13EF008601D1 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3DC4174F2FAB63920085B651 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -34,11 +97,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3D758BFA2FAE13EF008601D1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */,
+				3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		3DC417492FAB63920085B651 = {
 			isa = PBXGroup;
 			children = (
+				3D758CD62FAE1965008601D1 /* BorsihindWidgetsExtension.entitlements */,
 				3D758BF12FADD0D3008601D1 /* Borsihind.storekit */,
 				3DC417542FAB63920085B651 /* Borsihind */,
+				3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */,
+				3D7700000000000000000001 /* Shared */,
+				3D758BFA2FAE13EF008601D1 /* Frameworks */,
 				3DC417532FAB63920085B651 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -47,6 +123,7 @@
 			isa = PBXGroup;
 			children = (
 				3DC417522FAB63920085B651 /* Borsihind.app */,
+				3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -54,6 +131,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "BorsihindWidgetsExtension" */;
+			buildPhases = (
+				3D758BF52FAE13EF008601D1 /* Sources */,
+				3D758BF62FAE13EF008601D1 /* Frameworks */,
+				3D758BF72FAE13EF008601D1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */,
+				3D7700000000000000000001 /* Shared */,
+			);
+			name = BorsihindWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = BorsihindWidgetsExtension;
+			productReference = 3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		3DC417512FAB63920085B651 /* Borsihind */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3DC4175D2FAB63930085B651 /* Build configuration list for PBXNativeTarget "Borsihind" */;
@@ -61,12 +161,15 @@
 				3DC4174E2FAB63920085B651 /* Sources */,
 				3DC4174F2FAB63920085B651 /* Frameworks */,
 				3DC417502FAB63920085B651 /* Resources */,
+				3D758C0E2FAE13F1008601D1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3D758C082FAE13F1008601D1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				3D7700000000000000000001 /* Shared */,
 				3DC417542FAB63920085B651 /* Borsihind */,
 			);
 			name = Borsihind;
@@ -86,6 +189,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					3D758BF82FAE13EF008601D1 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 					3DC417512FAB63920085B651 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -107,11 +213,19 @@
 			projectRoot = "";
 			targets = (
 				3DC417512FAB63920085B651 /* Borsihind */,
+				3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		3D758BF72FAE13EF008601D1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3DC417502FAB63920085B651 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -123,6 +237,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3D758BF52FAE13EF008601D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3DC4174E2FAB63920085B651 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -132,7 +253,109 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		3D758C082FAE13F1008601D1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				macos,
+				xros,
+			);
+			target = 3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */;
+			targetProxy = 3D758C072FAE13F1008601D1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		3D758C0C2FAE13F1008601D1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = BorsihindWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BorsihindWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BorsihindWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.BorsihindWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		3D758C0D2FAE13F1008601D1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = BorsihindWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BorsihindWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BorsihindWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.BorsihindWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
 		3DC4175B2FAB63930085B651 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -352,6 +575,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "BorsihindWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3D758C0C2FAE13F1008601D1 /* Debug */,
+				3D758C0D2FAE13F1008601D1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		3DC4174D2FAB63920085B651 /* Build configuration list for PBXProject "Borsihind" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

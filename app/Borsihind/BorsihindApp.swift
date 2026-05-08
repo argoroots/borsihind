@@ -27,6 +27,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
+/// Per-scene delegate that applies a minimum window size on iPad
+/// (multitasking / Stage Manager). On iPhone `sizeRestrictions` is nil and
+/// this is effectively a no-op.
 final class WindowSceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(
         _ scene: UIScene,
@@ -72,7 +75,6 @@ struct BorsihindApp: App {
         ContentView()
             .environment(\.locale, locale)
             .environment(store)
-//            .frame(minWidth: 1280, minHeight: 768)
             .frame(minWidth: 500, minHeight: 700)
         #else
         ContentView()

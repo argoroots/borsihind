@@ -72,6 +72,16 @@ struct CurrentPriceWidgetView: View {
     let entry: PriceEntry
     @Environment(\.widgetFamily) private var family
 
+    /// Read the user's app language from the shared App Group store —
+    /// same pattern as `PaywallView` / `SettingsView`. The widget process
+    /// has its own UserDefaults.standard, so without `store: .shared` it
+    /// would always see the default value.
+    @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
+
+    private var locale: Locale {
+        (Language(rawValue: languageRaw) ?? .et).locale
+    }
+
     var body: some View {
         Group {
             if entry.isSubscribed {
@@ -103,7 +113,7 @@ struct CurrentPriceWidgetView: View {
             Text("Börsihind+")
                 .font(.headline.bold())
                 .foregroundStyle(.primary)
-            Text("Ava widget")
+            Text(locale.t("Open widget"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -251,10 +261,11 @@ private extension CurrentPriceWidgetView {
 
 private extension CurrentPriceWidgetView {
 
-    /// "Odavaim Nh" — N comes from the user's selected window in the main
-    /// app (1/2/3/4). Falls back to 1h.
+    /// "Odavaim Nh" / "Cheapest Nh" — N comes from the user's selected
+    /// window in the main app (1/2/3/4). Falls back to 1h.
     var cheapestHeader: String {
-        "Odavaim \(entry.snapshot?.cheapestHours ?? 1)h"
+        let n = entry.snapshot?.cheapestHours ?? 1
+        return locale.t("Cheapest %@h").replacingOccurrences(of: "%@", with: String(n))
     }
 
     /// Indices in `hourlyTotals` that the user's selected cheapest window

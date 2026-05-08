@@ -9,7 +9,17 @@ import StoreKit
 ///   the user can switch tiers, cancel, or request refunds via Apple's
 ///   own UI.
 struct PaywallView: View {
-    @Environment(\.locale) private var locale
+    /// Read the app language directly from `@AppStorage` — `\.locale` from
+    /// the env doesn't always propagate through `.sheet` presentation
+    /// (and StoreKit's `SubscriptionStoreView` internally overrides it),
+    /// so the env-based path leaves the paywall stuck on the device's
+    /// storefront locale even when the user has switched the app to EN.
+    @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
+
+    private var locale: Locale {
+        (Language(rawValue: languageRaw) ?? .et).locale
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(StoreManager.self) private var store
@@ -24,6 +34,12 @@ struct PaywallView: View {
                 paywallView
             }
         }
+        // Re-assert our `locale` (from app's language setting) for the
+        // entire subtree. SubscriptionStoreView otherwise leaks the
+        // device's StoreKit storefront locale into the closure, which
+        // could leave our marketing text stuck in Estonian even when the
+        // user has switched the app to English.
+        .environment(\.locale, locale)
         // Force a fresh entitlement scan whenever the sheet appears so the
         // right branch is picked even if our local `purchased` set lagged
         // behind StoreKit (happens on macOS after a cold launch).

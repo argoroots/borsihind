@@ -59,7 +59,7 @@ struct BorsihindApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #endif
 
-    @AppStorage("language") private var languageRaw: String = Language.et.rawValue
+    @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
 
     private var locale: Locale {
         (Language(rawValue: languageRaw) ?? .et).locale

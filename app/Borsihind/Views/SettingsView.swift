@@ -12,7 +12,7 @@ struct SettingsView: View {
     /// the sheet (or stacks it) and presents the paywall.
     var onRequestPaywall: () -> Void
 
-    @AppStorage("language") private var languageRaw: String = Language.et.rawValue
+    @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
     /// Mirrors `ContentView`'s flag — tapping the disclaimer row resets it so
     /// the first-launch alert reappears on the next cold start (debug aid).
     @AppStorage("disclaimerShown") private var disclaimerShown: Bool = false

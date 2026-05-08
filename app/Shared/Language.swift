@@ -1,8 +1,15 @@
 import SwiftUI
 
+extension UserDefaults {
+    /// App Group-backed defaults shared between the main app and the widget
+    /// extension. Persists the language preference (and any other shared
+    /// user-facing setting) so both processes see the same value.
+    static let shared = UserDefaults(suiteName: SharedStorage.appGroupID) ?? .standard
+}
+
 /// User-selectable UI language. Persisted as the raw identifier in
-/// `@AppStorage("language")`; the matching `Locale` flows through the
-/// SwiftUI `\.locale` environment so views observe live changes.
+/// `@AppStorage("language", store: .shared)`; the matching `Locale` flows
+/// through the SwiftUI `\.locale` environment so views observe live changes.
 enum Language: String, CaseIterable, Identifiable {
     case et
     case en

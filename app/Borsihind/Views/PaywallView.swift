@@ -44,6 +44,13 @@ struct PaywallView: View {
         // right branch is picked even if our local `purchased` set lagged
         // behind StoreKit (happens on macOS after a cold launch).
         .task { await store.refresh() }
+        // macOS: minimum window size for the paywall sheet — without this
+        // SubscriptionStoreView packs tight and the marketing block feels
+        // cramped above the tier picker. iOS / iPadOS sheets are already
+        // full-height by default.
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 820, idealHeight: 880)
+        #endif
         #if os(iOS)
         .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         #endif
@@ -97,6 +104,26 @@ struct PaywallView: View {
     // MARK: - Paywall (non-subscriber) state
 
     private var paywallView: some View {
+        #if os(iOS)
+        // Hide Apple's auto-close (which sits trailing) in favor of our own
+        // leading-placed system X chip, matching subscriber view + Settings.
+        NavigationStack {
+            paywallStore
+                .storeButton(.hidden, for: .cancellation)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(role: .close) { dismiss() }
+                    }
+                }
+        }
+        #else
+        paywallStore
+        #endif
+    }
+
+    /// Just the SubscriptionStoreView body — extracted so the iOS wrapper
+    /// can nest it in a NavigationStack for the leading close button.
+    private var paywallStore: some View {
         SubscriptionStoreView(productIDs: StoreManager.allProductIDs) {
             VStack(spacing: 16) {
                 heroIcon
@@ -115,6 +142,19 @@ struct PaywallView: View {
         .subscriptionStoreButtonLabel(.action)
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .redeemCode)
+        // Required by App Review (Guideline 3.1.2): Terms of Use (EULA) and
+        // Privacy Policy must be reachable from the purchase flow. Use the
+        // URL-based destination — Apple's default in-app webview behavior,
+        // which reviewers see in hundreds of subscription apps and is the
+        // safest pattern for compliance.
+        .subscriptionStorePolicyDestination(
+            url: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!,
+            for: .termsOfService
+        )
+        .subscriptionStorePolicyDestination(
+            url: URL(string: "https://borsihind.ee/privacy.html")!,
+            for: .privacyPolicy
+        )
         #endif
         // Auto-close on successful purchase or restore.
         .onInAppPurchaseCompletion { _, result in
@@ -177,3 +217,4 @@ private struct PaywallBullet: View {
         }
     }
 }
+

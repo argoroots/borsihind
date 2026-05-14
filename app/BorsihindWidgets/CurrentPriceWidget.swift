@@ -102,7 +102,9 @@ struct CurrentPriceWidgetView: View {
                 lockedView
             }
         }
-        .widgetURL(URL(string: "borsihind://paywall"))
+        // Only free users get the deep link into the paywall. Subscribers
+        // tap to open the app normally (no URL → host app's default scene).
+        .widgetURL(entry.isSubscribed ? nil : URL(string: "borsihind://paywall"))
     }
 
     /// Shown to non-subscribers in every family. Compact wordmark + lock
@@ -187,7 +189,9 @@ private extension CurrentPriceWidgetView {
             Spacer(minLength: 4)
 
             if let totals = entry.snapshot?.hourlyTotals, !totals.isEmpty {
-                MiniBarChart(values: totals, highlightedRange: highlightedRange)
+                MiniBarChart(values: totals,
+                             highlightedRange: highlightedRange,
+                             midnightIndices: midnightIndices)
                     .frame(height: 28)
             } else if let snap = entry.snapshot, let start = snap.cheapestStart {
                 Text(cheapestHeader)
@@ -211,7 +215,9 @@ private extension CurrentPriceWidgetView {
             }
 
             if let totals = entry.snapshot?.hourlyTotals, !totals.isEmpty {
-                MiniBarChart(values: totals, highlightedRange: highlightedRange)
+                MiniBarChart(values: totals,
+                             highlightedRange: highlightedRange,
+                             midnightIndices: midnightIndices)
                     .frame(height: 32)
             }
         }
@@ -268,6 +274,25 @@ private extension CurrentPriceWidgetView {
         return locale.t("Cheapest %@h").replacingOccurrences(of: "%@", with: String(n))
     }
 
+    /// Indices in `hourlyTotals` whose hour is 00:00 — used by the mini
+    /// chart to draw a thin day-divider before each midnight bar. Index 0
+    /// is excluded since there's nothing to divide from at the left edge.
+    var midnightIndices: Set<Int> {
+        guard let snap = entry.snapshot,
+              let start = snap.hourlyStart,
+              !snap.hourlyTotals.isEmpty
+        else { return [] }
+        let cal = Calendar.current
+        var out: Set<Int> = []
+        for i in 1..<snap.hourlyTotals.count {
+            let date = start.addingTimeInterval(TimeInterval(i) * 3600)
+            if cal.component(.hour, from: date) == 0 {
+                out.insert(i)
+            }
+        }
+        return out
+    }
+
     /// Indices in `hourlyTotals` that the user's selected cheapest window
     /// covers. Drives the green highlight on the mini bar chart. `nil`
     /// when the window doesn't fall inside the visible 24-hour horizon.
@@ -317,6 +342,10 @@ private enum WidgetFormat {
 private struct MiniBarChart: View {
     let values: [Double]
     let highlightedRange: ClosedRange<Int>?
+    /// Bars at these indices get a thin vertical divider drawn immediately
+    /// to their left, marking the start of a new day (00:00). Empty set =
+    /// no dividers (e.g. when hourlyStart is missing).
+    let midnightIndices: Set<Int>
 
     var body: some View {
         GeometryReader { geo in
@@ -324,16 +353,29 @@ private struct MiniBarChart: View {
             let count = max(values.count, 1)
             let barWidth = max(1, (geo.size.width - CGFloat(count - 1)) / CGFloat(count))
 
-            HStack(alignment: .bottom, spacing: 1) {
-                ForEach(values.indices, id: \.self) { i in
-                    let ratio = maxValue > 0 ? CGFloat(values[i] / maxValue) : 0
-                    let isHighlighted = highlightedRange?.contains(i) == true
+            ZStack(alignment: .bottomLeading) {
+                HStack(alignment: .bottom, spacing: 1) {
+                    ForEach(values.indices, id: \.self) { i in
+                        let ratio = maxValue > 0 ? CGFloat(values[i] / maxValue) : 0
+                        let isHighlighted = highlightedRange?.contains(i) == true
+                        Rectangle()
+                            .fill(Color.primary.opacity(isHighlighted ? 0.35 : 1))
+                            .frame(width: barWidth, height: max(2, geo.size.height * ratio))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+                // Day dividers drawn in a separate layer so they span the
+                // full chart height regardless of the adjacent bar's
+                // height. X-position matches the gap between bar (i-1) and
+                // bar (i): i * (barWidth + spacing) - 0.5 of the 1pt gap.
+                ForEach(Array(midnightIndices), id: \.self) { i in
                     Rectangle()
-                        .fill(Color.primary.opacity(isHighlighted ? 0.35 : 1))
-                        .frame(width: barWidth, height: max(2, geo.size.height * ratio))
+                        .fill(Color.primary.opacity(0.5))
+                        .frame(width: 1, height: geo.size.height)
+                        .offset(x: CGFloat(i) * (barWidth + 1) - 1)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
     }
 }

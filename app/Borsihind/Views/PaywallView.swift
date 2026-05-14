@@ -95,7 +95,7 @@ struct PaywallView: View {
                 // gives the non-subscriber state — same shape on iOS, native
                 // close on macOS.
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .close) { dismiss() }
+                    DismissButton(title: locale.t("Done"))
                 }
             }
         }
@@ -112,7 +112,7 @@ struct PaywallView: View {
                 .storeButton(.hidden, for: .cancellation)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(role: .close) { dismiss() }
+                        DismissButton(title: locale.t("Done"))
                     }
                 }
         }

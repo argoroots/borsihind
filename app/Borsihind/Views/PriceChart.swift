@@ -160,6 +160,32 @@ struct PriceChart: View {
         return dates
     }
 
+    /// Minimum horizontal space (in points) each "HH" label needs to read
+    /// cleanly without crowding its neighbours. Two-digit body-font labels
+    /// measure ~18pt wide; 30pt gives a comfortable gap.
+    private static let minLabelSpacing: CGFloat = 30
+
+    /// How many hours to step between labels, given the chart's available
+    /// width. Picks the smallest step from {1,2,4,6} that keeps every
+    /// rendered label at least `minLabelSpacing` apart. Sticking to divisors
+    /// of 24 keeps labels aligned to round hours (00, 04, 08, …).
+    private func labelHourStep(forWidth width: CGFloat) -> Int {
+        let hours = max(hourBoundaryDates.count, 1)
+        let perHour = width / CGFloat(hours)
+        for step in [1, 2, 4, 6] {
+            if perHour * CGFloat(step) >= Self.minLabelSpacing {
+                return step
+            }
+        }
+        return 6
+    }
+
+    /// Should the label at this axis value render, given the chosen step?
+    private func showLabel(at value: AxisValue, step: Int) -> Bool {
+        guard let date = value.as(Date.self) else { return true }
+        return Calendar.current.component(.hour, from: date) % step == 0
+    }
+
     /// Visible time range. Extends back to the first slot's hour start so
     /// the leading synthetic axis boundary is in-domain (otherwise Charts
     /// would drop it and the first label).
@@ -172,49 +198,80 @@ struct PriceChart: View {
     }
 
     var body: some View {
-        chart
-            .chartLegend(.hidden)
-            .chartXScale(domain: xDomain)
-            .chartXAxis {
-                // Single AxisMarks at HH:00 boundaries: ticks land on the
-                // hour, labels (centered: true) sit between adjacent ticks
-                // — i.e. at HH:30, the visual midpoint of each hour group.
-                AxisMarks(values: hourBoundaryDates) { _ in
-                    if interval == .fifteenMin {
-                        // Solid (no dash). Color is the default Charts grid
-                        // colour so it matches the horizontal y-axis lines.
-                        AxisTick(stroke: StrokeStyle(lineWidth: 1))
+        // Wrap in GeometryReader so the hour-label stride can adapt to the
+        // actual chart width — every hour fits on a wide macOS window, but
+        // long day-ahead datasets on a phone need 2/4/6h stride to avoid
+        // overlap.
+        GeometryReader { geo in
+            let step = labelHourStep(forWidth: geo.size.width)
+            chart
+                .chartLegend(.hidden)
+                .chartXScale(domain: xDomain)
+                .chartXAxis {
+                    // Single AxisMarks at HH:00 boundaries: ticks land on the
+                    // hour, labels (centered: true) sit between adjacent ticks
+                    // — i.e. at HH:30, the visual midpoint of each hour group.
+                    AxisMarks(values: hourBoundaryDates) { value in
+                        if interval == .fifteenMin {
+                            // Solid (no dash). Color is the default Charts grid
+                            // colour so it matches the horizontal y-axis lines.
+                            AxisTick(stroke: StrokeStyle(lineWidth: 1))
+                        }
+                        if showLabel(at: value, step: step) {
+                            // Disabled collision resolution — our width-aware
+                            // hour stride already produces gaps wide enough
+                            // that labels never overlap, so we want them all
+                            // to render rather than letting Charts hide some
+                            // unpredictably.
+                            AxisValueLabel(
+                                format: Date.VerbatimFormatStyle.hour24,
+                                centered: true,
+                                collisionResolution: .disabled
+                            )
+                            .font(.body)
+                        }
                     }
-                    AxisValueLabel(
-                        format: Date.VerbatimFormatStyle.hour24,
-                        centered: true,
-                        collisionResolution: .greedy
-                    )
-                    .font(.body)
                 }
-            }
-            .chartYScale(domain: 0...yAxisMax)
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .stride(by: 5)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel()
-                        .font(.body)
+                .chartYScale(domain: 0...yAxisMax)
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .stride(by: 5)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel()
+                            .font(.body)
+                    }
                 }
-            }
-            .chartOverlay { proxy in
-                tapOverlay(proxy: proxy)
-            }
+                .chartOverlay { proxy in
+                    tapOverlay(proxy: proxy)
+                }
+        }
+    }
+
+    /// Midnight (00:00) boundaries inside the visible x-domain. Drives the
+    /// day-divider rule marks so the user can tell at a glance where
+    /// "tomorrow" begins in the day-ahead price strip.
+    private var midnightDates: [Date] {
+        let cal = Calendar.current
+        return hourBoundaryDates.filter { cal.component(.hour, from: $0) == 0 }
     }
 
     private var chart: some View {
-        Chart(barRows) { row in
-            RectangleMark(
-                xStart: .value("Start", row.xStart),
-                xEnd: .value("End", row.xEnd),
-                yStart: .value("YStart", row.yStart),
-                yEnd: .value("YEnd", row.yEnd)
-            )
-            .foregroundStyle(color(for: row.layer, style: row.style))
+        Chart {
+            ForEach(barRows) { row in
+                RectangleMark(
+                    xStart: .value("Start", row.xStart),
+                    xEnd: .value("End", row.xEnd),
+                    yStart: .value("YStart", row.yStart),
+                    yEnd: .value("YEnd", row.yEnd)
+                )
+                .foregroundStyle(color(for: row.layer, style: row.style))
+            }
+            // Day divider — thin dashed vertical line at each 00:00 so the
+            // boundary between today and tomorrow is visually obvious.
+            ForEach(midnightDates, id: \.self) { date in
+                RuleMark(x: .value("Midnight", date))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

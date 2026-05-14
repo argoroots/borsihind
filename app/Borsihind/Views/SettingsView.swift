@@ -183,11 +183,8 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                // iOS 26 / macOS 26 — `Button(role: .close)` in
-                // `.cancellationAction` placement renders the platform's
-                // native close chip (X on iOS, native close on macOS).
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .close) { dismiss() }
+                    DismissButton(title: locale.t("Done"))
                 }
             }
         }

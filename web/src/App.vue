@@ -269,14 +269,26 @@ function findLowestTimeSpan (prices, span) {
 </script>
 
 <template>
-  <header class="w-full">
-    <h1 class="mx-auto w-max text-2xl text-center font-bold text-stone-900/80 tracking-wide">
+  <header class="w-full flex items-center justify-between gap-4">
+    <h1 class="text-2xl font-bold text-stone-900/80 tracking-wide">
       Elektri börsihind
-      <span class="block italic text-right text-sm font-thin">by <a
+      <span class="block italic text-sm font-thin">by <a
         class="hover:underline"
         href="mailto:argo@roots.ee?subject=Elektri börsihind"
       >Argo Roots</a></span>
     </h1>
+    <a
+      href="https://apps.apple.com/ee/app/borsihind/id6766868176"
+      target="_blank"
+      rel="noopener"
+      aria-label="Lae alla App Store'ist"
+    >
+      <img
+        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/et-ee?releaseDate=1700000000"
+        alt="Lae alla App Store'ist"
+        class="h-10"
+      >
+    </a>
   </header>
 
   <main class="flex flex-col gap-8 md:gap-20">

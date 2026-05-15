@@ -278,7 +278,7 @@ function findLowestTimeSpan (prices, span) {
       >Argo Roots</a></span>
     </h1>
     <a
-      href="https://apps.apple.com/ee/app/borsihind/id6766868176"
+      href="https://apps.apple.com/app/apple-store/id6766868176?pt=120355100&ct=web&mt=8"
       target="_blank"
       rel="noopener"
       aria-label="Lae alla App Store'ist"

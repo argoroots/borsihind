@@ -14,6 +14,38 @@
     "%@ c/kWh" : {
 
     },
+    "%@: %@" : {
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%@% cheaper than now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@% odavam kui hetkel"
+          }
+        }
+      }
+    },
+    "%@% higher than now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@% kõrgem kui hetkel"
+          }
+        }
+      }
+    },
     "%@% higher" : {
       "extractionState" : "manual",
       "localizations" : {

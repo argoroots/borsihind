@@ -58,6 +58,7 @@ struct LowestWindowCard: View {
                     .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
+                        // Row 1: time range on the left, price on the right.
                         HStack(spacing: 4) {
                             Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
                                 .font(.headline.bold())
@@ -65,16 +66,15 @@ struct LowestWindowCard: View {
                                 .font(.headline)
                             Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
                                 .font(.headline.bold())
-                        }
-                        HStack {
+                            Spacer()
                             Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
                                 .font(.headline.weight(.regular))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(percentString)
-                                .font(.headline.weight(.regular))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary)
                         }
+                        // Row 2: savings %, left-aligned under the time range.
+                        Text(percentString)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -109,15 +109,17 @@ struct LowestWindowCard: View {
     }
 
     /// Display string for the unlocked savings %.
-    ///   - window cheaper → "+N%"
-    ///   - window pricier → "N% kõrgem" (defensive — shouldn't normally hit
-    ///     since the cheapest finder picks the minimum)
+    ///   - window cheaper → "N% cheaper than now"
+    ///   - window pricier → "N% higher than now" (defensive — shouldn't
+    ///     normally hit since the cheapest finder picks the minimum)
     ///   - equal after rounding → "0%"
     private var percentString: String {
         guard let pct = roundedDiffPercent else { return "—" }
-        if pct > 0 { return "+\(pct)%" }
+        if pct > 0 {
+            return locale.t("%@% cheaper than now").replacingOccurrences(of: "%@", with: String(pct))
+        }
         if pct < 0 {
-            return locale.t("%@% higher").replacingOccurrences(of: "%@", with: String(-pct))
+            return locale.t("%@% higher than now").replacingOccurrences(of: "%@", with: String(-pct))
         }
         return "0%"
     }

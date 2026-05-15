@@ -136,7 +136,7 @@ private extension CurrentPriceWidgetView {
     var inlineView: some View {
         Group {
             if let snap = entry.snapshot {
-                Text("\(WidgetFormat.price(snap.currentTotal)) c/kWh")
+                Text("\(WidgetFormat.price(snap.currentTotal, locale: locale)) c/kWh")
             } else {
                 Text("Börsihind")
             }
@@ -162,7 +162,7 @@ private extension CurrentPriceWidgetView {
         VStack(alignment: .leading, spacing: 2) {
             Text("Börsihind").font(.caption2.weight(.semibold))
             HStack(alignment: .firstTextBaseline) {
-                Text(WidgetFormat.price(entry.snapshot?.currentTotal))
+                Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
                     .font(.title3.bold())
                     .monospacedDigit()
                 Text("c/kWh").font(.caption2)
@@ -231,7 +231,7 @@ private extension CurrentPriceWidgetView {
                 .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(WidgetFormat.price(entry.snapshot?.currentTotal))
+            Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
                 .font(.system(size: largeFontSize, weight: .bold))
                 .monospacedDigit()
             Text("c/kWh")
@@ -253,7 +253,7 @@ private extension CurrentPriceWidgetView {
                 Text(start, format: WidgetFormat.hourMinute24)
                     .font(.title2.bold())
                     .monospacedDigit()
-                Text("\(WidgetFormat.price(avg)) c/kWh")
+                Text("\(WidgetFormat.price(avg, locale: locale)) c/kWh")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -311,10 +311,13 @@ private extension CurrentPriceWidgetView {
 /// Stateless formatting helpers. `enum` rather than `struct` so it's clear
 /// these are namespace-only — no instances are ever created.
 private enum WidgetFormat {
-    /// "24.62" with optional placeholder.
-    static func price(_ value: Double?) -> String {
+    /// "24,62" / "24.62" with optional placeholder. Uses the passed locale
+    /// so the decimal separator matches the user's app language (comma for
+    /// Estonian, dot for English). Defaults to the current locale when
+    /// none is passed — for back-compat with callers that don't have one.
+    static func price(_ value: Double?, locale: Locale = .current) -> String {
         guard let value else { return "—" }
-        return value.formatted(.number.precision(.fractionLength(2)))
+        return value.formatted(.number.precision(.fractionLength(2)).locale(locale))
     }
 
     /// Whole-number rounded for tight spaces.

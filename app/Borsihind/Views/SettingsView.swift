@@ -188,6 +188,12 @@ struct SettingsView: View {
                 }
             }
         }
+        // macOS-only minimum window size for the sheet. On iPhone the
+        // 420pt minWidth was forcing the NavigationStack wider than the
+        // screen (393pt on most devices), which shifted the leading
+        // toolbar item — our close button — tight against the left edge.
+        #if os(macOS)
         .frame(minWidth: 420, idealWidth: 480, minHeight: 380)
+        #endif
     }
 }

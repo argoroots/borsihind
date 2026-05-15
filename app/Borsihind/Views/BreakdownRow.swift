@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// A single row in the price breakdown table — label on left, value on right,
-/// solid divider separating rows.
+/// One row in the price-breakdown table: label left, value right, optional
+/// hairline divider underneath.
 struct BreakdownRow: View {
     let label: String
     let value: Double

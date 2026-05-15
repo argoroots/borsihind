@@ -2,9 +2,9 @@ import WidgetKit
 import SwiftUI
 
 /// Glanceable current-price widget. Reads pre-computed snapshots written
-/// by the main app to the App Group — no network or StoreKit calls in the
-/// widget process. Refreshes when the app re-writes the snapshot, plus
-/// once per slot end via the timeline policy.
+/// by the main app to the App Group — no network or StoreKit calls in
+/// the widget process. Refreshes when the app re-writes the snapshot,
+/// plus once per slot end via the timeline policy.
 struct CurrentPriceWidget: Widget {
     let kind = "CurrentPriceWidget"
 
@@ -19,8 +19,8 @@ struct CurrentPriceWidget: Widget {
     }
 
     private var supportedFamilies: [WidgetFamily] {
-        // Lock-screen / Watch accessory families exist only on iOS / iPadOS.
-        // macOS desktop widgets get the system small/medium sizes.
+        // Lock-screen / Watch accessory families are iOS / iPadOS only.
+        // macOS desktop widgets only have system small/medium.
         #if os(iOS)
         [.systemSmall, .systemMedium,
          .accessoryRectangular, .accessoryCircular, .accessoryInline]
@@ -35,8 +35,8 @@ struct CurrentPriceWidget: Widget {
 struct PriceEntry: TimelineEntry {
     let date: Date
     let snapshot: SharedStorage.Snapshot?
-    /// Mirrors `StoreManager.isSubscribed` from the main app — used to gate
-    /// the widget content behind the Börsihind+ paywall.
+    /// Mirrors `StoreManager.isSubscribed`, used to gate the widget
+    /// behind the Börsihind+ paywall.
     let isSubscribed: Bool
 }
 
@@ -50,8 +50,9 @@ struct PriceProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceEntry>) -> Void) {
-        // Refresh once at the current slot's end so the visible price flips
-        // at the slot boundary, or every 30 minutes if no snapshot exists.
+        // Refresh at the current slot's end so the visible price flips
+        // at the slot boundary; fall back to every 30 min when no
+        // snapshot is available.
         let entry = currentEntry()
         let next = entry.snapshot?.currentEnd ?? Date().addingTimeInterval(30 * 60)
         completion(Timeline(entries: [entry], policy: .after(next)))
@@ -72,10 +73,8 @@ struct CurrentPriceWidgetView: View {
     let entry: PriceEntry
     @Environment(\.widgetFamily) private var family
 
-    /// Read the user's app language from the shared App Group store —
-    /// same pattern as `PaywallView` / `SettingsView`. The widget process
-    /// has its own UserDefaults.standard, so without `store: .shared` it
-    /// would always see the default value.
+    /// Read the user's language from shared storage. The widget process
+    /// has its own UserDefaults.standard, so `store: .shared` is required.
     @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
 
     private var locale: Locale {
@@ -85,7 +84,6 @@ struct CurrentPriceWidgetView: View {
     var body: some View {
         Group {
             if entry.isSubscribed {
-                // Subscriber: full widget content per family.
                 switch family {
                 #if os(iOS)
                 case .accessoryInline:      inlineView
@@ -96,20 +94,14 @@ struct CurrentPriceWidgetView: View {
                 default:                    smallView
                 }
             } else {
-                // Free user: show a Börsihind+ upgrade card. Tapping the
-                // widget deep-links into the paywall via the `widgetURL`
-                // below.
                 lockedView
             }
         }
-        // Only free users get the deep link into the paywall. Subscribers
-        // tap to open the app normally (no URL → host app's default scene).
+        // Free users tap → paywall; subscribers tap → default scene.
         .widgetURL(entry.isSubscribed ? nil : URL(string: "borsihind://paywall"))
     }
 
-    /// Shown to non-subscribers in every family. Compact wordmark + lock
-    /// glyph so it reads as "this is a paid feature" rather than a broken
-    /// widget. Layout adapts loosely to family without per-family branches.
+    /// Compact upsell shown to non-subscribers in every widget family.
     private var lockedView: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Börsihind+")
@@ -132,7 +124,6 @@ struct CurrentPriceWidgetView: View {
 #if os(iOS)
 private extension CurrentPriceWidgetView {
 
-    /// One-line label.
     var inlineView: some View {
         Group {
             if let snap = entry.snapshot {
@@ -157,7 +148,6 @@ private extension CurrentPriceWidgetView {
         }
     }
 
-    /// Rectangular complication.
     var rectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Börsihind").font(.caption2.weight(.semibold))
@@ -181,7 +171,6 @@ private extension CurrentPriceWidgetView {
 
 private extension CurrentPriceWidgetView {
 
-    /// Home Screen small.
     var smallView: some View {
         VStack(alignment: .leading, spacing: 4) {
             priceBlock(largeFontSize: 32)
@@ -205,7 +194,6 @@ private extension CurrentPriceWidgetView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Home Screen medium.
     var mediumView: some View {
         VStack(spacing: 8) {
             HStack(alignment: .top, spacing: 16) {
@@ -224,7 +212,7 @@ private extension CurrentPriceWidgetView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Top-left price block — shared by small and medium.
+    /// Top-left price block, shared by small + medium families.
     func priceBlock(largeFontSize: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Börsihind")
@@ -240,7 +228,7 @@ private extension CurrentPriceWidgetView {
         }
     }
 
-    /// Top-right "Odavaim Nh" block — medium widget only.
+    /// Top-right "Cheapest Nh" block (medium family only).
     var cheapestBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(cheapestHeader)
@@ -267,16 +255,27 @@ private extension CurrentPriceWidgetView {
 
 private extension CurrentPriceWidgetView {
 
-    /// "Odavaim Nh" / "Cheapest Nh" — N comes from the user's selected
-    /// window in the main app (1/2/3/4). Falls back to 1h.
+    /// "Cheapest Nh" / "Odavaim Nh" — N from the user's selected window
+    /// in the main app (1/2/3/4). Falls back to 1h.
     var cheapestHeader: String {
         let n = entry.snapshot?.cheapestHours ?? 1
         return locale.t("Cheapest %@h").replacingOccurrences(of: "%@", with: String(n))
     }
 
-    /// Indices in `hourlyTotals` whose hour is 00:00 — used by the mini
-    /// chart to draw a thin day-divider before each midnight bar. Index 0
-    /// is excluded since there's nothing to divide from at the left edge.
+    /// `hourlyTotals` indices covered by the selected cheapest window.
+    /// Drives the green highlight on the mini chart. Nil when the
+    /// window doesn't fall within the visible 24-hour horizon.
+    var highlightedRange: ClosedRange<Int>? {
+        guard let snap = entry.snapshot,
+              let start = snap.cheapestHighlightStart,
+              !snap.hourlyTotals.isEmpty
+        else { return nil }
+        let end = start + max(snap.cheapestHours, 1) - 1
+        return start...min(end, snap.hourlyTotals.count - 1)
+    }
+
+    /// `hourlyTotals` indices at 00:00 — drives the day-divider line in
+    /// the mini chart. Index 0 is excluded (nothing to divide from).
     var midnightIndices: Set<Int> {
         guard let snap = entry.snapshot,
               let start = snap.hourlyStart,
@@ -292,35 +291,20 @@ private extension CurrentPriceWidgetView {
         }
         return out
     }
-
-    /// Indices in `hourlyTotals` that the user's selected cheapest window
-    /// covers. Drives the green highlight on the mini bar chart. `nil`
-    /// when the window doesn't fall inside the visible 24-hour horizon.
-    var highlightedRange: ClosedRange<Int>? {
-        guard let snap = entry.snapshot,
-              let start = snap.cheapestHighlightStart,
-              !snap.hourlyTotals.isEmpty
-        else { return nil }
-        let end = start + max(snap.cheapestHours, 1) - 1
-        return start...min(end, snap.hourlyTotals.count - 1)
-    }
 }
 
 // MARK: - Formatting
 
-/// Stateless formatting helpers. `enum` rather than `struct` so it's clear
-/// these are namespace-only — no instances are ever created.
+/// Stateless formatting helpers. `enum` rather than `struct` so it's
+/// clearly a namespace, not an instantiable type.
 private enum WidgetFormat {
-    /// "24,62" / "24.62" with optional placeholder. Uses the passed locale
-    /// so the decimal separator matches the user's app language (comma for
-    /// Estonian, dot for English). Defaults to the current locale when
-    /// none is passed — for back-compat with callers that don't have one.
+    /// "24,62" / "24.62" with placeholder. Locale picks the separator.
     static func price(_ value: Double?, locale: Locale = .current) -> String {
         guard let value else { return "—" }
         return value.formatted(.number.precision(.fractionLength(2)).locale(locale))
     }
 
-    /// Whole-number rounded for tight spaces.
+    /// Whole-number rounded — for tight spaces (circular complication).
     static func integer(_ value: Double?) -> String {
         guard let value else { return "—" }
         return "\(Int(value.rounded()))"
@@ -336,18 +320,15 @@ private enum WidgetFormat {
 
 // MARK: - Mini bar chart
 
-/// Compact bar chart for the widget. One thin bar per hourly total at a
-/// height proportional to that hour's value vs. the series max. All bars
-/// use `.primary` so they adapt to light, dark, AND iOS tinted-Home-Screen
-/// modes — non-cheapest bars at full opacity, cheapest-window bars at 35%
-/// so they read as "faded" against the rest. (Earlier iterations used
-/// green, but green disappears under iOS's tinted Home Screen filter.)
+/// Compact bar chart for the widget. One thin bar per hourly total,
+/// height proportional to value vs. series max. Bars use `.primary` so
+/// they adapt to light, dark, AND iOS tinted Home Screen modes —
+/// cheapest-window bars at 35% opacity read as "faded" against the rest.
+/// (Green disappears under iOS's tinted filter, so we don't use it.)
 private struct MiniBarChart: View {
     let values: [Double]
     let highlightedRange: ClosedRange<Int>?
-    /// Bars at these indices get a thin vertical divider drawn immediately
-    /// to their left, marking the start of a new day (00:00). Empty set =
-    /// no dividers (e.g. when hourlyStart is missing).
+    /// Indices with a thin day-divider drawn to their left.
     let midnightIndices: Set<Int>
 
     var body: some View {
@@ -369,9 +350,7 @@ private struct MiniBarChart: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
                 // Day dividers drawn in a separate layer so they span the
-                // full chart height regardless of the adjacent bar's
-                // height. X-position matches the gap between bar (i-1) and
-                // bar (i): i * (barWidth + spacing) - 0.5 of the 1pt gap.
+                // full chart height regardless of the adjacent bar height.
                 ForEach(Array(midnightIndices), id: \.self) { i in
                     Rectangle()
                         .fill(Color.primary.opacity(0.5))

@@ -1,31 +1,20 @@
 import SwiftUI
 
-/// One row in the cheapest-hours list. Shows a green `1h`/`2h`/`3h`/`4h`
-/// badge on the left and the window's time range, average price, and percent
-/// savings vs. running an N-hour load starting *right now* on the right.
-/// Tapping toggles selection (light-green tinted background); non-selected
-/// rows light up on hover.
+/// One cheapest-hours card: hour badge on the left, time range + average +
+/// savings on the right. Tapping toggles selection (chart highlight).
 struct LowestWindowCard: View {
     let window: LowestWindow
     let isSelected: Bool
-    /// True when the window is gated behind Börsihind+ (2/3/4h windows for
-    /// non-subscribers). The card still renders, but with a lock icon and
-    /// tap routes to the paywall.
+    /// Premium-gated (slots 1...3 for free users). Tap opens the paywall.
     let isLocked: Bool
-    /// `false` while the subscription state hasn't been resolved yet — the
-    /// card renders just the hour badge and reserves the right-side space
-    /// without flashing Börsihind+ chrome that may be wrong.
+    /// `false` while StoreKit is still resolving — render placeholder.
     let isReady: Bool
-    /// Average price of the same number of consecutive hours starting now —
-    /// the apples-to-apples baseline for the savings %. `nil` when not enough
-    /// future data is available.
+    /// Average price of the same N hours starting now. Baseline for "% cheaper".
     let nowAverage: Double?
     let onTap: () -> Void
 
     @Environment(\.locale) private var locale
     @State private var isHovering = false
-    /// Driven by the deadline-warning glyph. When true, present an alert
-    /// explaining why the displayed window doesn't fit the user's deadline.
     @State private var showDeadlineExplanation = false
 
     var body: some View {
@@ -37,101 +26,80 @@ struct LowestWindowCard: View {
                     .frame(minWidth: 36)
 
                 if !isReady {
-                    // Subscription state not yet known — reserve the slot
-                    // but render nothing so we don't flash a Börsihind+ tag
-                    // that may be wrong. Color.clear keeps the card height
-                    // stable so the layout doesn't jump when content lands.
+                    // Reserve height while subscription state resolves.
                     Color.clear
                         .frame(maxWidth: .infinity, minHeight: 36)
                 } else if isLocked {
-                    // Locked card: hide the actual time/price (the answer
-                    // users pay for). Single subdued line vertically
-                    // centered with the badge. minHeight matches the
-                    // unlocked card's two-line height so all rows in the
-                    // list have the same height.
-                    HStack {
-                        Text(savingsTeaser)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text("Börsihind+")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                    lockedContent
                 } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        // Row 1: time range on the left, price on the right.
-                        HStack(spacing: 4) {
-                            Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
-                                .font(.headline.bold())
-                            Text("–")
-                                .font(.headline)
-                            Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
-                                .font(.headline.bold())
-                            // Deadline-miss indicator. Tapping it stops the
-                            // outer Button's `onTap` from firing (the inner
-                            // Button intercepts the tap) and shows an alert
-                            // explaining why the shown window doesn't fit
-                            // the user's deadline.
-                            if window.missedDeadline != nil {
-                                Button {
-                                    showDeadlineExplanation = true
-                                } label: {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.orange)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(locale.t("Deadline warning"))
-                            }
-                            Spacer()
-                            Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
-                                .font(.headline.weight(.regular))
-                                .foregroundStyle(.primary)
-                        }
-                        // Row 2: savings %, left-aligned under the time range.
-                        Text(percentString)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    unlockedContent
                 }
             }
             .padding(8)
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(backgroundFill)
+                RoundedRectangle(cornerRadius: 8).fill(backgroundFill)
             )
         }
         .buttonStyle(.plain)
         #if !os(tvOS)
-        // tvOS has no mouse/pointer; the hover tint isn't applicable.
         .onHover { isHovering = $0 }
         #endif
-        .alert(locale.t("Deadline warning"),
-               isPresented: $showDeadlineExplanation) {
+        .alert(locale.t("Deadline warning"), isPresented: $showDeadlineExplanation) {
             Button(locale.t("OK"), role: .cancel) { }
         } message: {
             Text(deadlineExplanation)
         }
     }
 
-    /// Human-readable explanation for the deadline-warning alert. Names
-    /// the deadline time (formatted as HH:00 in the user's locale) and
-    /// the actual shown window times, then explains the fallback. Uses
-    /// distinct `{token}` placeholders so the localized template can put
-    /// them in any order without positional-format gymnastics.
-    private var deadlineExplanation: String {
-        let fmt = Date.VerbatimFormatStyle.hourMinute24
-        let deadlineStr = window.missedDeadline.map { $0.formatted(fmt) } ?? "—"
-        return locale.t("No {hours}h window fits before {deadline}. Showing the cheapest available window ({start} – {end}) as a fallback.")
-            .replacingOccurrences(of: "{hours}", with: String(window.hours))
-            .replacingOccurrences(of: "{deadline}", with: deadlineStr)
-            .replacingOccurrences(of: "{start}", with: window.start.formatted(fmt))
-            .replacingOccurrences(of: "{end}", with: window.end.formatted(fmt))
+    // MARK: - Inner layouts
+
+    private var lockedContent: some View {
+        HStack {
+            Text(savingsTeaser)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Spacer()
+            Text("Börsihind+")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tint)
+        }
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
     }
+
+    private var unlockedContent: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
+                    .font(.headline.bold())
+                Text("–")
+                    .font(.headline)
+                Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
+                    .font(.headline.bold())
+                if window.missedDeadline != nil {
+                    // Inner Button intercepts the tap so the outer card
+                    // selection doesn't toggle.
+                    Button { showDeadlineExplanation = true } label: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(locale.t("Deadline warning"))
+                }
+                Spacer()
+                Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
+                    .font(.headline.weight(.regular))
+                    .foregroundStyle(.primary)
+            }
+            Text(percentString)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Derived strings + styling
 
     private var backgroundFill: Color {
         if isSelected { return Color.green.opacity(0.15) }
@@ -139,20 +107,13 @@ struct LowestWindowCard: View {
         return Color.clear
     }
 
-    /// Savings % vs running the same N hours starting now. Computed from
-    /// the raw (full-precision) prices, then rounded to a whole percent for
-    /// display. Returns nil when there isn't enough future data.
+    /// Window savings vs. running the same N hours starting now, rounded
+    /// to a whole percent. Nil when not enough future data is available.
     private var roundedDiffPercent: Int? {
         guard let baseline = nowAverage, baseline > 0 else { return nil }
-        let pct = (baseline - window.averagePrice) / baseline * 100
-        return Int(pct.rounded())
+        return Int(((baseline - window.averagePrice) / baseline * 100).rounded())
     }
 
-    /// Display string for the unlocked savings %.
-    ///   - window cheaper → "N% cheaper than now"
-    ///   - window pricier → "N% higher than now" (defensive — shouldn't
-    ///     normally hit since the cheapest finder picks the minimum)
-    ///   - equal after rounding → "0%"
     private var percentString: String {
         guard let pct = roundedDiffPercent else { return "—" }
         if pct > 0 {
@@ -164,17 +125,24 @@ struct LowestWindowCard: View {
         return locale.t("Same as now")
     }
 
-    /// Status line for locked cards. Just states whether there's a cheaper
-    /// future window or not — the actual time/price is what subscription
-    /// unlocks. Math note: the cheapest-window finder picks the minimum
-    /// average, so savings is never strictly negative; rounding to whole-%
-    /// gives us a clean binary "is there a cheaper window or is now already
-    /// the cheapest".
+    /// Locked-card status line. Cheapest finder picks the minimum, so
+    /// "negative savings" never happens — we just need a binary "is there
+    /// a cheaper window or not".
     private var savingsTeaser: String {
-        let savings = roundedDiffPercent ?? 0
-        return savings > 0
+        (roundedDiffPercent ?? 0) > 0
             ? locale.t("Cheaper window available")
             : locale.t("Already cheapest now")
     }
 
+    /// Alert body. Uses `{token}` placeholders so the localized template
+    /// can reorder freely.
+    private var deadlineExplanation: String {
+        let fmt = Date.VerbatimFormatStyle.hourMinute24
+        let deadlineStr = window.missedDeadline.map { $0.formatted(fmt) } ?? "—"
+        return locale.t("No {hours}h window fits before {deadline}. Showing the cheapest available window ({start} – {end}) as a fallback.")
+            .replacingOccurrences(of: "{hours}", with: String(window.hours))
+            .replacingOccurrences(of: "{deadline}", with: deadlineStr)
+            .replacingOccurrences(of: "{start}", with: window.start.formatted(fmt))
+            .replacingOccurrences(of: "{end}", with: window.end.formatted(fmt))
+    }
 }

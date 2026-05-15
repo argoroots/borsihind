@@ -1,15 +1,14 @@
 import SwiftUI
 
 extension UserDefaults {
-    /// App Group-backed defaults shared between the main app and the widget
-    /// extension. Persists the language preference (and any other shared
-    /// user-facing setting) so both processes see the same value.
+    /// App Group-backed defaults shared between the main app and the
+    /// widget extension. Persists the language preference so both
+    /// processes see the same value.
     static let shared = UserDefaults(suiteName: SharedStorage.appGroupID) ?? .standard
 }
 
 /// User-selectable UI language. Persisted as the raw identifier in
-/// `@AppStorage("language", store: .shared)`; the matching `Locale` flows
-/// through the SwiftUI `\.locale` environment so views observe live changes.
+/// `@AppStorage("language", store: .shared)`.
 enum Language: String, CaseIterable, Identifiable {
     case et
     case en
@@ -27,12 +26,12 @@ enum Language: String, CaseIterable, Identifiable {
     var locale: Locale { Locale(identifier: rawValue) }
 }
 
-/// String Catalog lookup against the `.lproj` bundle for this locale's
-/// language code, so the in-app language picker can switch translations
-/// live. `String(localized:locale:)` only uses the locale for *formatting*
-/// embedded values, not for choosing which translation table to read —
-/// hence the explicit per-language bundle.
 extension Locale {
+    /// Look up a string in the matching `.lproj` bundle so the in-app
+    /// language picker switches translations live. The standard
+    /// `String(localized:locale:)` only uses the locale for formatting
+    /// embedded values, not for choosing the table — hence the explicit
+    /// per-language bundle.
     func t(_ key: String) -> String {
         let bundle = Self.cachedBundle(forLanguage: self.identifier) ?? .main
         return bundle.localizedString(forKey: key, value: key, table: nil)
@@ -45,24 +44,24 @@ extension Locale {
             return cached
         }
         guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
-              let bundle = Bundle(path: path) else { return nil }
+              let bundle = Bundle(path: path)
+        else { return nil }
         bundleCache.setObject(bundle, forKey: code as NSString)
         return bundle
     }
 }
 
 extension Date.VerbatimFormatStyle {
-    /// 24-hour `HH:mm`. Verbatim — bypasses locale/region so 13:00 never
-    /// renders as "01:00". The locale-`Components` `hourCycle` trick is
-    /// honored inconsistently on macOS depending on system region settings.
+    /// 24-hour `HH:mm`. Verbatim — bypasses locale/region so 13:00
+    /// never renders as "01:00". (macOS honors locale `hourCycle`
+    /// inconsistently depending on region settings.)
     static let hourMinute24 = Date.VerbatimFormatStyle(
         format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
         timeZone: .current,
         calendar: .current
     )
 
-    /// 24-hour `HH` (no minutes). Same locale-stability rationale as
-    /// `hourMinute24`. Used by chart axis labels.
+    /// 24-hour `HH` without minutes. Same locale-stability rationale.
     static let hour24 = Date.VerbatimFormatStyle(
         format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))",
         timeZone: .current,

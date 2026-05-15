@@ -14,12 +14,13 @@
     "%@ c/kWh" : {
 
     },
-    "%@: %@" : {
+    "%@ hours" : {
+      "extractionState" : "manual",
       "localizations" : {
         "et" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@"
+            "state" : "translated",
+            "value" : "%@ tundi"
           }
         }
       }
@@ -82,6 +83,28 @@
         }
       }
     },
+    "5 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 minutit"
+          }
+        }
+      }
+    },
+    "10 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 minutit"
+          }
+        }
+      }
+    },
     "15 minutes" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -104,6 +127,17 @@
         }
       }
     },
+    "30 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 minutit"
+          }
+        }
+      }
+    },
     "All prices shown in the app include VAT and are in cents per kilowatt-hour." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -122,6 +156,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Praegu on kõige odavam"
+          }
+        }
+      }
+    },
+    "At start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algusel"
           }
         }
       }
@@ -157,28 +202,6 @@
         }
       }
     },
-    "Cheapest hours" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odavad tunnid"
-          }
-        }
-      }
-    },
-    "At start" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Algusel"
-          }
-        }
-      }
-    },
     "Cheapest %@h starts at %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -190,85 +213,13 @@
         }
       }
     },
-    "Same as now" : {
+    "Cheapest hours" : {
       "extractionState" : "manual",
       "localizations" : {
         "et" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sama kui hetkel"
-          }
-        }
-      }
-    },
-    "Notifications" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Teavitused"
-          }
-        }
-      }
-    },
-    "Notifications explanation" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saadame teavituse iga aktiivse odava akna alguse eel. Kui valid „Väljas“, teavitusi ei saadeta."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We send a notification before each active cheap window starts. Pick \"Off\" to disable."
-          }
-        }
-      }
-    },
-    "Notify before" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Teavita enne"
-          }
-        }
-      }
-    },
-    "5 minutes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "5 minutit"
-          }
-        }
-      }
-    },
-    "10 minutes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "10 minutit"
-          }
-        }
-      }
-    },
-    "30 minutes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30 minutit"
+            "value" : "Odavad tunnid"
           }
         }
       }
@@ -276,16 +227,16 @@
     "Cheapest hours explanation" : {
       "extractionState" : "manual",
       "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odavad tunnid näitavad järgmistest tundidest kõige soodsamaid ajavahemikke. \"Lõpeb hiljemalt\" määrab kellaaja, milleks aken peab lõpetatud olema – näiteks 07:00 öiseks laadimiseks."
-          }
-        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cheapest hours show the most affordable upcoming time windows. \"Must end before\" sets when the window must finish — e.g. 07:00 for overnight charging."
+          }
+        },
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odavad tunnid näitavad järgmistest tundidest kõige soodsamaid ajavahemikke. \"Lõpeb hiljemalt\" määrab kellaaja, milleks aken peab lõpetatud olema – näiteks 07:00 öiseks laadimiseks."
           }
         }
       }
@@ -462,7 +413,10 @@
         }
       }
     },
-    "Must end before" : {
+    "Midnight" : {
+
+    },
+    "Must end before" : {
       "extractionState" : "manual",
       "localizations" : {
         "et" : {
@@ -473,9 +427,6 @@
         }
       }
     },
-    "Midnight" : {
-
-    },
     "No {hours}h window fits before {deadline}. Showing the cheapest available window ({start} – {end}) as a fallback." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -483,6 +434,45 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enne {deadline} ei mahu ühtegi {hours}h akent. Näitame asemel kõige odavamat saadaolevat akent ({start} – {end})."
+          }
+        }
+      }
+    },
+    "Notifications" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teavitused"
+          }
+        }
+      }
+    },
+    "Notifications explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We send a notification before each active cheap window starts. Pick \"Off\" to disable."
+          }
+        },
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saadame teavituse iga aktiivse odava akna alguse eel. Kui valid „Väljas“, teavitusi ei saadeta."
+          }
+        }
+      }
+    },
+    "Notify before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teavita enne"
           }
         }
       }
@@ -520,6 +510,34 @@
         }
       }
     },
+    "Pricing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinnastus"
+          }
+        }
+      }
+    },
+    "Pricing explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get your grid service plan info from Elektrilevi and the seller margin from your electricity retailer."
+          }
+        },
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Võrguteenuse paketi info saad Elektrilevist, müüja marginaali oma elektrimüüjalt."
+          }
+        }
+      }
+    },
     "Renewable energy tax" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -527,6 +545,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Taastuvenergia tasu"
+          }
+        }
+      }
+    },
+    "Same as now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sama kui hetkel"
           }
         }
       }

@@ -1,8 +1,8 @@
 import Foundation
 
-/// One row of price data, after conversion from €/MWh to c/kWh.
-/// Stack order (bottom → top): excise, supplySecurity, renewable, transmission, electricity.
-/// `marginal` is added separately at the bottom from user input.
+/// One price row, c/kWh (already converted from €/MWh).
+/// Stack order bottom → top: excise, supplySecurity, renewable,
+/// transmission, electricity. `marginal` is added separately by the UI.
 struct PriceEntry: Identifiable, Hashable, Sendable {
     let date: Date
     let electricity: Double
@@ -13,9 +13,9 @@ struct PriceEntry: Identifiable, Hashable, Sendable {
 
     var id: Date { date }
 
-    /// Decode one entry from raw JSON array:
-    /// [year, month, day, hour, minute, electricity, transmission, renewable, excise, supplySecurity]
-    /// All price fields are in €/MWh; we convert to c/kWh by ×100.
+    /// Decode one entry from the raw JSON array:
+    /// `[year, month, day, hour, minute, electricity, transmission,
+    ///   renewable, excise, supplySecurity]`. Prices are €/MWh → ×100 c/kWh.
     static func decode(from raw: [Double]) -> PriceEntry? {
         guard raw.count >= 10 else { return nil }
         var comps = DateComponents()
@@ -24,8 +24,7 @@ struct PriceEntry: Identifiable, Hashable, Sendable {
         comps.day = Int(raw[2])
         comps.hour = Int(raw[3])
         comps.minute = Int(raw[4])
-        let cal = Calendar(identifier: .gregorian)
-        guard let date = cal.date(from: comps) else { return nil }
+        guard let date = Calendar(identifier: .gregorian).date(from: comps) else { return nil }
         return PriceEntry(
             date: date,
             electricity: raw[5] * 100,
@@ -36,7 +35,7 @@ struct PriceEntry: Identifiable, Hashable, Sendable {
         )
     }
 
-    /// Sum of all components excluding marginal.
+    /// Sum of all components, excluding marginal.
     var componentSum: Double {
         electricity + transmission + renewable + excise + supplySecurity
     }
@@ -66,7 +65,7 @@ enum Interval: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    /// Localization key — looked up via `Locale.t(_:)`.
+    /// Localization key looked up via `Locale.t(_:)`.
     var labelKey: String {
         switch self {
         case .fifteenMin: "15 minutes"
@@ -76,30 +75,26 @@ enum Interval: String, CaseIterable, Identifiable, Sendable {
 
     var minutes: Int { self == .oneHour ? 60 : 15 }
 
-    /// Slots per hour — used as multiplier when computing N-hour windows.
+    /// Multiplier when computing N-hour windows.
     var slotsPerHour: Int { self == .oneHour ? 1 : 4 }
 }
 
-/// Cheapest-window result for a single user slot. Each slot is one row
-/// in the main screen's cheapest-hours list; users configure up to 4
-/// slots with their own `hours` (1...6) and optional deadline.
+/// Cheapest-window result for one user slot. Up to four slots are shown
+/// on the main screen, each with its own `hours` (1...6) and deadline.
 struct LowestWindow: Identifiable, Hashable, Sendable {
-    /// Slot index 0...3 — distinguishes results when two slots happen to
-    /// use the same `hours` value.
+    /// Stable storage slot index 0...3 — distinguishes two slots that
+    /// happen to use the same `hours` value.
     let slotIndex: Int
-    /// Window length in hours (1...6) — used for display + savings %.
-    let hours: Int
+    let hours: Int          // 1...6
     let startIndex: Int
     let endIndex: Int
     let start: Date
     let end: Date
-    let averagePrice: Double  // average c/kWh including marginal
-    /// The user-configured "must end before HH:00" deadline that this
-    /// window failed to satisfy. `nil` when there's no deadline set or
-    /// the chosen window does respect it. When non-nil, the card UI
-    /// renders a warning glyph next to the time so the user knows the
-    /// shown window doesn't fit their deadline (but it's still the
-    /// cheapest available, shown as a graceful fallback).
+    /// c/kWh, including marginal.
+    let averagePrice: Double
+    /// The user's deadline that this window couldn't satisfy. Non-nil
+    /// surfaces a warning glyph on the card; the displayed window is
+    /// the unconstrained cheapest fallback.
     let missedDeadline: Date?
 
     var id: Int { slotIndex }
@@ -107,13 +102,13 @@ struct LowestWindow: Identifiable, Hashable, Sendable {
     var label: String { "\(hours)h" }
 }
 
-/// User-configurable cheapest-hours slot: window length + optional
-/// "must end before HH:00" deadline. `deadline == 0` means no constraint.
-/// `id` is the stable storage slot index (0...3), used so the
-/// resulting `LowestWindow.slotIndex` stays tied to the right
-/// AppStorage entry even after the user re-orders the slots.
+/// User-configurable cheapest-hours slot. `hours == 0` disables the slot;
+/// `deadline == -1` means no "must end before" constraint, otherwise it's
+/// an hour of day (0...23, where 0 = midnight). `id` mirrors the storage
+/// slot index so a `LowestWindow.slotIndex` stays tied to the right
+/// `@AppStorage` entry.
 struct CheapestSlot: Hashable, Sendable {
-    var id: Int        // 0...3, matches storage slot
-    var hours: Int     // 1...6
-    var deadline: Int  // 0 = off, 1...23
+    var id: Int        // 0...3
+    var hours: Int     // 0...6 (0 = off)
+    var deadline: Int  // -1 = off, 0...23 = hour of day
 }

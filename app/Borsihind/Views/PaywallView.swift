@@ -1,30 +1,28 @@
 import SwiftUI
 import StoreKit
 
-/// Börsihind+ subscription sheet. Renders one of two states:
-/// - **Not subscribed** → `SubscriptionStoreView` paywall with marketing
-///   block, tier picker, restore + redeem buttons, and Apple's mandatory
-///   auto-renewal disclosure.
-/// - **Subscribed** → confirmation + system Manage-Subscription button so
-///   the user can switch tiers, cancel, or request refunds via Apple's
-///   own UI.
+/// Börsihind+ sheet. Two states:
+/// - Not subscribed → `SubscriptionStoreView` paywall.
+/// - Subscribed → confirmation card + system manage-subscription entry.
 struct PaywallView: View {
-    /// Read the app language directly from `@AppStorage` — `\.locale` from
-    /// the env doesn't always propagate through `.sheet` presentation
-    /// (and StoreKit's `SubscriptionStoreView` internally overrides it),
-    /// so the env-based path leaves the paywall stuck on the device's
-    /// storefront locale even when the user has switched the app to EN.
+    /// Read language directly from shared storage — `\.locale` env doesn't
+    /// reliably propagate through `.sheet` presentation, and
+    /// `SubscriptionStoreView` internally overrides locale anyway.
     @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
-
-    private var locale: Locale {
-        (Language(rawValue: languageRaw) ?? .et).locale
-    }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(StoreManager.self) private var store
 
     @State private var showManageSubscriptions = false
+    /// `true` if the sheet opened in non-subscribed state — used to
+    /// auto-dismiss after a successful purchase without dismissing
+    /// subscribers who opened the sheet to manage their plan.
+    @State private var startedAsFreeUser: Bool?
+
+    private var locale: Locale {
+        (Language(rawValue: languageRaw) ?? .et).locale
+    }
 
     var body: some View {
         Group {
@@ -34,20 +32,25 @@ struct PaywallView: View {
                 paywallView
             }
         }
-        // Re-assert our `locale` (from app's language setting) for the
-        // entire subtree. SubscriptionStoreView otherwise leaks the
-        // device's StoreKit storefront locale into the closure, which
-        // could leave our marketing text stuck in Estonian even when the
-        // user has switched the app to English.
+        // Re-assert our locale for the subtree — SubscriptionStoreView
+        // otherwise leaks the device's StoreKit storefront locale.
         .environment(\.locale, locale)
-        // Force a fresh entitlement scan whenever the sheet appears so the
-        // right branch is picked even if our local `purchased` set lagged
-        // behind StoreKit (happens on macOS after a cold launch).
+        // Fresh entitlement scan so the right branch is picked even if
+        // our cached `purchased` set lagged behind StoreKit.
         .task { await store.refresh() }
-        // macOS: minimum window size for the paywall sheet — without this
-        // SubscriptionStoreView packs tight and the marketing block feels
-        // cramped above the tier picker. iOS / iPadOS sheets are already
-        // full-height by default.
+        .onAppear {
+            if startedAsFreeUser == nil {
+                startedAsFreeUser = !store.isSubscribed
+            }
+        }
+        // Belt-and-suspenders auto-dismiss for free-user → subscribed
+        // transitions. macOS 26's `onInAppPurchaseCompletion` is unreliable;
+        // observing the entitlement directly always works.
+        .onChange(of: store.isSubscribed) { _, isSubbed in
+            if isSubbed, startedAsFreeUser == true {
+                dismiss()
+            }
+        }
         #if os(macOS)
         .frame(minWidth: 520, idealWidth: 560, minHeight: 820, idealHeight: 880)
         #endif
@@ -56,7 +59,7 @@ struct PaywallView: View {
         #endif
     }
 
-    // MARK: - Subscriber state
+    // MARK: - Subscribed state
 
     private var subscribedView: some View {
         NavigationStack {
@@ -91,9 +94,6 @@ struct PaywallView: View {
             }
             .frame(maxWidth: .infinity)
             .toolbar {
-                // Mirrors the system close button SubscriptionStoreView
-                // gives the non-subscriber state — same shape on iOS, native
-                // close on macOS.
                 ToolbarItem(placement: .cancellationAction) {
                     DismissButton(title: locale.t("Done"))
                 }
@@ -101,12 +101,12 @@ struct PaywallView: View {
         }
     }
 
-    // MARK: - Paywall (non-subscriber) state
+    // MARK: - Paywall (non-subscribed) state
 
     private var paywallView: some View {
         #if os(iOS)
-        // Hide Apple's auto-close (which sits trailing) in favor of our own
-        // leading-placed system X chip, matching subscriber view + Settings.
+        // Hide Apple's auto-close (trailing) in favor of our own leading
+        // X — matches subscriber view + Settings sheet.
         NavigationStack {
             paywallStore
                 .storeButton(.hidden, for: .cancellation)
@@ -121,8 +121,8 @@ struct PaywallView: View {
         #endif
     }
 
-    /// Just the SubscriptionStoreView body — extracted so the iOS wrapper
-    /// can nest it in a NavigationStack for the leading close button.
+    /// `SubscriptionStoreView` body, extracted so iOS can wrap it in a
+    /// NavigationStack for the leading close button.
     private var paywallStore: some View {
         SubscriptionStoreView(productIDs: StoreManager.allProductIDs) {
             VStack(spacing: 16) {
@@ -135,18 +135,16 @@ struct PaywallView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 32)
         }
-        // tvOS supports SubscriptionStoreView itself but not these styling
-        // hooks. iOS / iPadOS / macOS get the picker + auxiliary buttons.
+        // tvOS supports `SubscriptionStoreView` itself but not the
+        // styling hooks; iOS / iPadOS / macOS get the picker chrome.
         #if !os(tvOS)
         .subscriptionStoreControlStyle(.compactPicker)
         .subscriptionStoreButtonLabel(.action)
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .redeemCode)
-        // Required by App Review (Guideline 3.1.2): Terms of Use (EULA) and
-        // Privacy Policy must be reachable from the purchase flow. Use the
-        // URL-based destination — Apple's default in-app webview behavior,
-        // which reviewers see in hundreds of subscription apps and is the
-        // safest pattern for compliance.
+        // Required by App Review (Guideline 3.1.2): Terms + Privacy must
+        // be reachable from the purchase flow. Apple's standard EULA URL
+        // is the safest pattern.
         .subscriptionStorePolicyDestination(
             url: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!,
             for: .termsOfService
@@ -156,16 +154,15 @@ struct PaywallView: View {
             for: .privacyPolicy
         )
         #endif
-        // Auto-close on successful purchase or restore.
+        // Auto-dismiss only on a real completion (inner `.success`).
+        // Outer `Result.success` also covers cancelled / pending.
         .onInAppPurchaseCompletion { _, result in
-            if case .success = result { dismiss() }
+            if case .success(.success) = result { dismiss() }
         }
     }
 
-    /// iOS uses the in-app `manageSubscriptionsSheet`; macOS opens the
-    /// system-wide App Store subscriptions page in the App Store app.
-    /// Both routes lead to the same Apple-managed UI for plan switching,
-    /// cancellation, and refunds.
+    /// iOS: in-app `manageSubscriptionsSheet`. macOS: App Store URL.
+    /// Both routes lead to Apple-managed plan switch / cancel / refund.
     private func openManageSubscription() {
         #if os(iOS)
         showManageSubscriptions = true
@@ -217,4 +214,3 @@ private struct PaywallBullet: View {
         }
     }
 }
-

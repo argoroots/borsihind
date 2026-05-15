@@ -6,14 +6,13 @@ enum PriceServiceError: Error, Sendable {
     case invalidResponse
 }
 
-/// Networking-only client for the public price JSON files served from S3.
-/// Stateless — one instance per call site is fine.
+/// Stateless networking client for the public S3 price files.
 struct PriceService: Sendable {
     static let baseURL = "https://borsihind.s3.eu-central-1.amazonaws.com"
 
-    /// Fetches the entire price file. Filtering by current time is the
-    /// view-model's job so the visible window can advance every minute
-    /// without re-hitting the network.
+    /// Fetch the entire price file. The viewmodel filters by current time
+    /// so the visible window can advance every minute without re-hitting
+    /// the network.
     func fetchPrices(plan: Plan, interval: Interval) async throws -> [PriceEntry] {
         let path = interval == .oneHour ? "\(plan.rawValue).json" : "15min/\(plan.rawValue).json"
         guard let url = URL(string: "\(Self.baseURL)/\(path)") else {

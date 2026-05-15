@@ -3,21 +3,19 @@ import Foundation
 import UserNotifications
 #endif
 
-/// Schedules local notifications for the user's cheapest-hours slots.
+/// Schedules local notifications for cheapest-hours slots.
 ///
-/// Each active slot becomes one `UNCalendarNotificationTrigger` fired
-/// `leadMinutes` before `LowestWindow.start`. Identifiers are deterministic
-/// (`"slot.0"…"slot.3"`) so a fresh `reschedule(...)` cleanly replaces the
-/// previous batch without stacking duplicates.
+/// Each active slot becomes a `UNCalendarNotificationTrigger` fired
+/// `leadMinutes` before `LowestWindow.start`. Identifiers are
+/// deterministic (`"slot.0"…"slot.3"`) so a fresh `reschedule(...)`
+/// cleanly replaces the previous batch without stacking duplicates.
 ///
-/// Notifications fire even when the app is fully closed — the OS
-/// notification daemon delivers them; we just need to register the
-/// triggers ahead of time. To keep them populated when the user goes
-/// days without opening the app, `BackgroundRefresh` wakes the app
-/// periodically and re-runs the unified refresh pipeline.
+/// Notifications fire even when the app is fully closed — the OS handles
+/// delivery once they're registered. `BackgroundRefresh` keeps them
+/// populated when the user goes days without opening the app.
 ///
-/// tvOS doesn't support `UserNotifications`, so the whole namespace is
-/// guarded out on that platform.
+/// tvOS has no `UserNotifications` framework — all entry points are
+/// no-op stubs there so call sites stay platform-agnostic.
 @MainActor
 enum NotificationScheduler {
 
@@ -26,9 +24,9 @@ enum NotificationScheduler {
     /// Slot ids 0...3 — matches `LowestWindow.slotIndex`.
     private static let slotIdentifiers = (0..<4).map { "slot.\($0)" }
 
-    /// Ask the OS for alert + sound permission. Idempotent: subsequent
-    /// calls return the cached authorization without prompting again.
-    /// Returns true for `.authorized` and `.provisional` (silent).
+    /// Request alert + sound permission. Idempotent: returns the cached
+    /// authorization without prompting on subsequent calls. Returns
+    /// `true` for `.authorized`, `.provisional`, `.ephemeral`.
     static func requestAuthorizationIfNeeded() async -> Bool {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
@@ -36,11 +34,7 @@ enum NotificationScheduler {
         case .authorized, .provisional, .ephemeral:
             return true
         case .notDetermined:
-            do {
-                return try await center.requestAuthorization(options: [.alert, .sound])
-            } catch {
-                return false
-            }
+            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         case .denied:
             return false
         @unknown default:
@@ -48,10 +42,9 @@ enum NotificationScheduler {
         }
     }
 
-    /// Replace pending slot notifications with a fresh batch derived from
-    /// `slots`. Slots whose `start - leadMinutes` is already in the past
-    /// are skipped. `leadMinutes < 0` is treated as "off" — calls
-    /// `removeAll()` and returns.
+    /// Replace pending slot notifications with a fresh batch derived
+    /// from `slots`. Slots whose `start - leadMinutes` is already past
+    /// are skipped. `leadMinutes < 0` → `removeAll()`.
     static func reschedule(slots: [LowestWindow], leadMinutes: Int, locale: Locale) async {
         guard leadMinutes >= 0 else {
             await removeAll()
@@ -70,25 +63,21 @@ enum NotificationScheduler {
         let fmt = Date.VerbatimFormatStyle.hourMinute24
 
         for slot in slots {
-            let identifier = "slot.\(slot.slotIndex)"
             let fireDate = slot.start.addingTimeInterval(-Double(leadMinutes) * 60)
-            // Skip slots whose fire date has already passed.
             guard fireDate > now else { continue }
 
-            let comps = cal.dateComponents([.year, .month, .day, .hour, .minute],
-                                           from: fireDate)
+            let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
             let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
 
             let content = UNMutableNotificationContent()
             content.title = "Börsihind"
             content.body = locale.t("Cheapest %@h starts at %@")
-                .replacingOccurrences(of: "%@1", with: "")
                 .replacingFirstOccurrence(of: "%@", with: String(slot.hours))
                 .replacingFirstOccurrence(of: "%@", with: slot.start.formatted(fmt))
             content.sound = .default
 
             let request = UNNotificationRequest(
-                identifier: identifier,
+                identifier: "slot.\(slot.slotIndex)",
                 content: content,
                 trigger: trigger
             )
@@ -96,7 +85,6 @@ enum NotificationScheduler {
         }
     }
 
-    /// Drop any pending slot notifications. Safe to call repeatedly.
     static func removeAll() async {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: slotIdentifiers)
@@ -104,8 +92,6 @@ enum NotificationScheduler {
 
     #else
 
-    // tvOS: notifications aren't supported. No-op stubs keep call sites
-    // platform-agnostic without `#if` cluttering ContentView.
     static func requestAuthorizationIfNeeded() async -> Bool { false }
     static func reschedule(slots: [LowestWindow], leadMinutes: Int, locale: Locale) async {}
     static func removeAll() async {}
@@ -113,12 +99,9 @@ enum NotificationScheduler {
     #endif
 }
 
-// MARK: - Helpers
-
 private extension String {
     /// Replace only the first occurrence of `needle` with `replacement`.
-    /// Used to fill positional `%@` placeholders one at a time without
-    /// needing `String(format:)`'s positional gymnastics.
+    /// Used to fill positional `%@` placeholders one at a time.
     func replacingFirstOccurrence(of needle: String, with replacement: String) -> String {
         guard let range = self.range(of: needle) else { return self }
         return self.replacingCharacters(in: range, with: replacement)

@@ -269,8 +269,8 @@ function findLowestTimeSpan (prices, span) {
 </script>
 
 <template>
-  <header class="w-full flex items-center justify-between gap-4">
-    <h1 class="text-2xl font-bold text-stone-900/80 tracking-wide">
+  <header class="w-full flex items-start justify-between gap-4">
+    <h1 class="text-2xl font-bold text-stone-900/80 tracking-wide whitespace-nowrap">
       Elektri börsihind
       <span class="block italic text-sm font-thin">by <a
         class="hover:underline"

@@ -35,6 +35,17 @@
         }
       }
     },
+    "%@% higher" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@% kõrgem"
+          }
+        }
+      }
+    },
     "%@% higher than now" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -46,16 +57,8 @@
         }
       }
     },
-    "%@% higher" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "et" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@% kõrgem"
-          }
-        }
-      }
+    "%lldh" : {
+
     },
     "1 hour" : {
       "extractionState" : "manual",
@@ -165,6 +168,139 @@
         }
       }
     },
+    "At start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algusel"
+          }
+        }
+      }
+    },
+    "Cheapest %@h starts at %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odavaim %@h algab kell %@"
+          }
+        }
+      }
+    },
+    "Same as now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sama kui hetkel"
+          }
+        }
+      }
+    },
+    "Notifications" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teavitused"
+          }
+        }
+      }
+    },
+    "Notifications explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saadame teavituse iga aktiivse odava akna alguse eel. Kui valid „Väljas“, teavitusi ei saadeta."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We send a notification before each active cheap window starts. Pick \"Off\" to disable."
+          }
+        }
+      }
+    },
+    "Notify before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teavita enne"
+          }
+        }
+      }
+    },
+    "5 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 minutit"
+          }
+        }
+      }
+    },
+    "10 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 minutit"
+          }
+        }
+      }
+    },
+    "30 minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 minutit"
+          }
+        }
+      }
+    },
+    "Cheapest hours explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odavad tunnid näitavad järgmistest tundidest kõige soodsamaid ajavahemikke. \"Lõpeb hiljemalt\" määrab kellaaja, milleks aken peab lõpetatud olema – näiteks 07:00 öiseks laadimiseks."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cheapest hours show the most affordable upcoming time windows. \"Must end before\" sets when the window must finish — e.g. 07:00 for overnight charging."
+          }
+        }
+      }
+    },
+    "Cheapest hours must end before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odavad tunnid peavad lõppema enne"
+          }
+        }
+      }
+    },
     "Current price" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -183,6 +319,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Müüja marginaali häälestamine"
+          }
+        }
+      }
+    },
+    "Deadline warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tähtaja hoiatus"
           }
         }
       }
@@ -304,8 +451,52 @@
         }
       }
     },
+    "Length" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pikkus"
+          }
+        }
+      }
+    },
+    "Must end before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lõpeb hiljemalt"
+          }
+        }
+      }
+    },
     "Midnight" : {
 
+    },
+    "No {hours}h window fits before {deadline}. Showing the cheapest available window ({start} – {end}) as a fallback." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enne {deadline} ei mahu ühtegi {hours}h akent. Näitame asemel kõige odavamat saadaolevat akent ({start} – {end})."
+          }
+        }
+      }
+    },
+    "Off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Väljas"
+          }
+        }
+      }
     },
     "OK" : {
       "extractionState" : "manual",
@@ -313,7 +504,7 @@
         "et" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sain aru"
+            "value" : "OK"
           }
         }
       }

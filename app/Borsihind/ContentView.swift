@@ -24,7 +24,33 @@ struct ContentView: View {
     /// the chart on first launch — that's the free-tier feature and the
     /// fastest "this is what the app does" demo. Setting it to `""` clears
     /// the highlight (toggling the same card off).
-    @AppStorage("lowest") private var lowestRaw: String = "1"
+    /// Selected slot index (0...3) — drives the green highlight on the
+    /// chart. `""` clears the highlight. Defaults to slot 0 so new users
+    /// see their first cheapest-hours card highlighted on launch.
+    @AppStorage("lowest") private var lowestRaw: String = "0"
+    /// Four user-editable cheapest-hours slots. Each slot has a window
+    /// length (1...6) and an optional "must end before HH:00" deadline
+    /// (`0` = no constraint). Defaults give the original 1h/2h/3h/4h
+    /// windows with no deadlines so existing screenshots / demos still
+    /// match what users see on first launch.
+    @AppStorage("slot.1.hours") private var slot1Hours: Int = 1
+    @AppStorage("slot.1.deadline") private var slot1Deadline: Int = 0
+    @AppStorage("slot.2.hours") private var slot2Hours: Int = 2
+    @AppStorage("slot.2.deadline") private var slot2Deadline: Int = 0
+    @AppStorage("slot.3.hours") private var slot3Hours: Int = 3
+    @AppStorage("slot.3.deadline") private var slot3Deadline: Int = 0
+    @AppStorage("slot.4.hours") private var slot4Hours: Int = 4
+    @AppStorage("slot.4.deadline") private var slot4Deadline: Int = 0
+    /// User-defined slot order. Comma-separated list of slot ids 0...3.
+    /// `@AppStorage` can't hold `[Int]` natively, so we round-trip through
+    /// a string. The Settings sheet rewrites this whenever the user drags
+    /// a row; the main screen reads it back to display cards in the same
+    /// order. Defaults to natural 0,1,2,3.
+    @AppStorage("slot.order") private var slotOrderRaw: String = "0,1,2,3"
+    /// Notification lead time in minutes. `-1` = Off (no notifications).
+    /// `0` = fire at slot start. `5/10/15/30/60` = N minutes before.
+    /// Free users see this gated behind Börsihind+.
+    @AppStorage("notify.leadMinutes") private var notifyLeadMinutes: Int = -1
     /// Which iPhone pager page was last shown — 0 = cheapest hours, 1 = chart.
     /// Persisted so the user returns to the same page across launches.
     @AppStorage("phonePage") private var phonePage: Int = 0
@@ -80,6 +106,8 @@ struct ContentView: View {
         )
     }
 
+    /// Selected slot index 0...3, or nil when no slot is selected (empty
+    /// string in `lowestRaw`).
     private var selectedLowest: Int? { Int(lowestRaw) }
 
     /// Effective margin used in all calculations. Free users see 0 — we keep
@@ -93,13 +121,62 @@ struct ContentView: View {
         store.isSubscribed ? interval.wrappedValue : .oneHour
     }
 
+    /// Slot config used for cheapest-window computation. Free users get a
+    /// single 1h slot with their stored deadline (the only setting they can
+    /// touch); subscribers get all four user-edited slots, returned in the
+    /// user-defined order. The stored values for slots 2-4 remain intact
+    /// when they subscribe later.
+    private var effectiveSlots: [CheapestSlot] {
+        let storage = [
+            CheapestSlot(id: 0, hours: clampedHours(slot1Hours), deadline: slot1Deadline),
+            CheapestSlot(id: 1, hours: clampedHours(slot2Hours), deadline: slot2Deadline),
+            CheapestSlot(id: 2, hours: clampedHours(slot3Hours), deadline: slot3Deadline),
+            CheapestSlot(id: 3, hours: clampedHours(slot4Hours), deadline: slot4Deadline),
+        ]
+        if !store.isSubscribed {
+            return [CheapestSlot(id: 0, hours: 1, deadline: slot1Deadline)]
+        }
+        // Apply the user-defined order, then append any slot ids missing
+        // from the stored order (defensive — handles corrupt or
+        // incomplete strings) so the result always has all 4 slots.
+        let order = Self.parseSlotOrder(slotOrderRaw)
+        var result: [CheapestSlot] = order.compactMap { id in storage.first { $0.id == id } }
+        for slot in storage where !result.contains(where: { $0.id == slot.id }) {
+            result.append(slot)
+        }
+        return result
+    }
+
+    /// Parse a comma-separated slot-order string ("2,0,1,3") into a unique
+    /// list of slot ids. Invalid / out-of-range / duplicate entries are
+    /// dropped.
+    static func parseSlotOrder(_ raw: String) -> [Int] {
+        var seen = Set<Int>()
+        return raw.split(separator: ",").compactMap { piece -> Int? in
+            guard let n = Int(piece), (0...3).contains(n), !seen.contains(n) else {
+                return nil
+            }
+            seen.insert(n)
+            return n
+        }
+    }
+
+    /// Defensive clamp in case stored values got into an invalid range
+    /// (e.g. user downgraded after editing on a newer build). `0` is a
+    /// valid value — means the slot is turned off and produces no card.
+    private func clampedHours(_ h: Int) -> Int { min(max(h, 0), 6) }
+
     private var lowestWindows: [LowestWindow] {
-        vm.lowestWindows(interval: effectiveInterval, marginal: effectiveMargin)
+        // Order follows the user-defined arrangement in Settings — the
+        // view-model already iterates `effectiveSlots` in that order, so
+        // no extra sort here.
+        vm.lowestWindows(interval: effectiveInterval, marginal: effectiveMargin,
+                         slots: effectiveSlots)
     }
 
     private var highlightRange: ClosedRange<Int>? {
-        guard let h = selectedLowest,
-              let win = lowestWindows.first(where: { $0.hours == h })
+        guard let idx = selectedLowest,
+              let win = lowestWindows.first(where: { $0.slotIndex == idx })
         else { return nil }
         return win.startIndex...win.endIndex
     }
@@ -136,13 +213,23 @@ struct ContentView: View {
                 interval: interval,
                 plan: plan,
                 marginal: $marginal,
+                slot1Hours: $slot1Hours,
+                slot1Deadline: $slot1Deadline,
+                slot2Hours: $slot2Hours,
+                slot2Deadline: $slot2Deadline,
+                slot3Hours: $slot3Hours,
+                slot3Deadline: $slot3Deadline,
+                slot4Hours: $slot4Hours,
+                slot4Deadline: $slot4Deadline,
+                slotOrderRaw: $slotOrderRaw,
+                notifyLeadMinutes: $notifyLeadMinutes,
                 onRequestPaywall: { showPaywall = true }
             )
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
         }
-        .task { await reload() }
+        .task { await refreshAll() }
         .task {
             // First-launch disclaimer. Once acknowledged the flag is
             // persisted, so this branch never fires again.
@@ -160,26 +247,30 @@ struct ContentView: View {
         }
         .onChange(of: planRaw) { _, _ in
             selectedDate = nil
-            Task { await reload() }
+            Task { await refreshAll() }
         }
         .onChange(of: intervalRaw) { _, _ in
             selectedDate = nil
-            Task { await reload() }
+            Task { await refreshAll() }
         }
         .onChange(of: store.isSubscribed) { _, _ in
             // Subscription flipped → effective interval/margin may change.
             selectedDate = nil
-            Task { await reload() }
-            updateWidgetSnapshot()
+            Task { await refreshAll() }
         }
         .onChange(of: lowestRaw) { _, _ in
             // User picked a different cheapest-window tier → push the new
-            // selection into the widget snapshot.
+            // selection into the widget snapshot. No network needed.
             updateWidgetSnapshot()
         }
         .onChange(of: marginal) { _, _ in
             // Margin edit changes every total → keep widget in sync.
             updateWidgetSnapshot()
+        }
+        .onChange(of: notifyLeadMinutes) { _, _ in
+            // User changed the notification lead time → reschedule (or
+            // wipe if they picked Off). No network needed.
+            Task { await rescheduleNotifications() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -189,20 +280,26 @@ struct ContentView: View {
                     // another device (or a fresh-launch desync) is reflected
                     // immediately when the user comes back to the app.
                     await store.refresh()
-                    await reload()
+                    await refreshAll()
                 }
             }
         }
         .onAppear {
-            vm.startAutoRefresh(
-                plan: { Plan(rawValue: planRaw) ?? .v1 },
-                // Free users always fetch the 1-hour dataset; 15-min is gated.
-                interval: { effectiveInterval }
-            )
-            vm.startMinuteTicker()
+            // Minute ticker drives the in-app chart slide. On every slot
+            // boundary (15-min or 1-h, depending on the user's interval),
+            // it triggers the full refresh pipeline — replaces the prior
+            // unconditional 15-min auto-refresh.
+            vm.startMinuteTicker {
+                Task { await refreshAll() }
+            }
+            #if os(iOS)
+            // Hand the background-refresh task a handler that runs the
+            // same refresh pipeline. Schedule the first background wake.
+            BackgroundRefresh.handler = { await refreshAll() }
+            BackgroundRefresh.scheduleNext()
+            #endif
         }
         .onDisappear {
-            vm.stopAutoRefresh()
             vm.stopMinuteTicker()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
@@ -475,14 +572,14 @@ struct ContentView: View {
             ForEach(lowestWindows) { window in
                 LowestWindowCard(
                     window: window,
-                    isSelected: selectedLowest == window.hours,
-                    // 1h is free; 2h/3h/4h require Börsihind+. While the
-                    // subscription state is still resolving on launch, treat
-                    // every card as unlocked (`isReady = false` hides the
-                    // inner data anyway), so we don't flash "Börsihind+"
+                    isSelected: selectedLowest == window.slotIndex,
+                    // Slot 0 is free; slots 1...3 require Börsihind+. While
+                    // the subscription state is still resolving on launch,
+                    // treat every card as unlocked (`isReady = false` hides
+                    // the inner data anyway) so we don't flash "Börsihind+"
                     // tags before the real status is known.
                     isLocked: store.hasResolvedSubscriptionState
-                        && window.hours > 1
+                        && window.slotIndex > 0
                         && !store.isSubscribed,
                     isReady: store.hasResolvedSubscriptionState,
                     nowAverage: vm.nowAverage(
@@ -491,10 +588,10 @@ struct ContentView: View {
                         marginal: effectiveMargin
                     ),
                     onTap: {
-                        if window.hours > 1 && !store.isSubscribed {
+                        if window.slotIndex > 0 && !store.isSubscribed {
                             showPaywall = true
                         } else {
-                            let key = String(window.hours)
+                            let key = String(window.slotIndex)
                             lowestRaw = (lowestRaw == key) ? "" : key
                         }
                     }
@@ -521,12 +618,35 @@ struct ContentView: View {
         return "\(entry.date.formatted(fmt)) – \(endDate.formatted(fmt))"
     }
 
-    private func reload() async {
+    /// Single canonical "refresh everything" entry point. Called from app
+    /// launch, scene-foreground, slot-boundary ticks, BGAppRefreshTask
+    /// wakes, manual reloads, and settings changes that invalidate the
+    /// cache. Always runs the same three steps so the in-app chart, the
+    /// widget snapshot, and scheduled notifications stay in sync from
+    /// one source of truth.
+    private func refreshAll() async {
         await vm.load(
             plan: Plan(rawValue: planRaw) ?? .v1,
             interval: effectiveInterval
         )
         updateWidgetSnapshot()
+        await rescheduleNotifications()
+    }
+
+    /// Hand the latest cheapest-window slots to the notification
+    /// scheduler. Only premium users get notifications; free users (or
+    /// any user with the picker set to Off) get any pending entries
+    /// wiped so nothing fires unexpectedly after a subscription lapse.
+    private func rescheduleNotifications() async {
+        guard store.isSubscribed, notifyLeadMinutes >= 0 else {
+            await NotificationScheduler.removeAll()
+            return
+        }
+        await NotificationScheduler.reschedule(
+            slots: lowestWindows,
+            leadMinutes: notifyLeadMinutes,
+            locale: locale
+        )
     }
 
     /// Push the latest visible state to the App Group so the widget process
@@ -536,9 +656,18 @@ struct ContentView: View {
         SharedStorage.isSubscribed = store.isSubscribed
         guard let bar = vm.prices.first else { return }
 
-        // Free users are pinned to 1h (longer windows are gated); premium
-        // users get whatever they tapped, defaulting to 1h.
-        let hours = store.isSubscribed ? (selectedLowest.map { (1...4).contains($0) ? $0 : 1 } ?? 1) : 1
+        // Free users are pinned to slot 0's 1h (longer windows are gated);
+        // premium users get the hours of their selected slot, defaulting to
+        // the first non-off slot when nothing is selected or the chosen
+        // slot is currently turned off.
+        let slots = effectiveSlots
+        let activeHours = { (id: Int) -> Int? in
+            slots.first(where: { $0.id == id })?.hours
+        }
+        let pickedHours = selectedLowest.flatMap(activeHours) ?? 0
+        let hours = pickedHours > 0
+            ? pickedHours
+            : (slots.first(where: { $0.hours > 0 })?.hours ?? 1)
 
         // The widget always renders 1-hour granularity regardless of the
         // user's selected interval. Compute the cheapest N consecutive

@@ -57,6 +57,15 @@ struct BorsihindApp: App {
 
     #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    /// Register the BGAppRefreshTask identifier as early as possible.
+    /// Apple requires `BGTaskScheduler.register(...)` to be called
+    /// before the app finishes launching — `init` is the safest hook.
+    /// The actual refresh closure is supplied later by `ContentView`
+    /// via `BackgroundRefresh.handler`.
+    init() {
+        BackgroundRefresh.register()
+    }
     #endif
 
     @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue

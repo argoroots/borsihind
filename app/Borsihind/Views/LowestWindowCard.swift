@@ -24,6 +24,9 @@ struct LowestWindowCard: View {
 
     @Environment(\.locale) private var locale
     @State private var isHovering = false
+    /// Driven by the deadline-warning glyph. When true, present an alert
+    /// explaining why the displayed window doesn't fit the user's deadline.
+    @State private var showDeadlineExplanation = false
 
     var body: some View {
         Button(action: onTap) {
@@ -66,6 +69,22 @@ struct LowestWindowCard: View {
                                 .font(.headline)
                             Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
                                 .font(.headline.bold())
+                            // Deadline-miss indicator. Tapping it stops the
+                            // outer Button's `onTap` from firing (the inner
+                            // Button intercepts the tap) and shows an alert
+                            // explaining why the shown window doesn't fit
+                            // the user's deadline.
+                            if window.missedDeadline != nil {
+                                Button {
+                                    showDeadlineExplanation = true
+                                } label: {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.orange)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(locale.t("Deadline warning"))
+                            }
                             Spacer()
                             Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
                                 .font(.headline.weight(.regular))
@@ -91,6 +110,27 @@ struct LowestWindowCard: View {
         // tvOS has no mouse/pointer; the hover tint isn't applicable.
         .onHover { isHovering = $0 }
         #endif
+        .alert(locale.t("Deadline warning"),
+               isPresented: $showDeadlineExplanation) {
+            Button(locale.t("OK"), role: .cancel) { }
+        } message: {
+            Text(deadlineExplanation)
+        }
+    }
+
+    /// Human-readable explanation for the deadline-warning alert. Names
+    /// the deadline time (formatted as HH:00 in the user's locale) and
+    /// the actual shown window times, then explains the fallback. Uses
+    /// distinct `{token}` placeholders so the localized template can put
+    /// them in any order without positional-format gymnastics.
+    private var deadlineExplanation: String {
+        let fmt = Date.VerbatimFormatStyle.hourMinute24
+        let deadlineStr = window.missedDeadline.map { $0.formatted(fmt) } ?? "—"
+        return locale.t("No {hours}h window fits before {deadline}. Showing the cheapest available window ({start} – {end}) as a fallback.")
+            .replacingOccurrences(of: "{hours}", with: String(window.hours))
+            .replacingOccurrences(of: "{deadline}", with: deadlineStr)
+            .replacingOccurrences(of: "{start}", with: window.start.formatted(fmt))
+            .replacingOccurrences(of: "{end}", with: window.end.formatted(fmt))
     }
 
     private var backgroundFill: Color {
@@ -121,7 +161,7 @@ struct LowestWindowCard: View {
         if pct < 0 {
             return locale.t("%@% higher than now").replacingOccurrences(of: "%@", with: String(-pct))
         }
-        return "0%"
+        return locale.t("Same as now")
     }
 
     /// Status line for locked cards. Just states whether there's a cheaper

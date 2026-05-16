@@ -50,7 +50,6 @@ struct ContentView: View {
     // MARK: - Environment
 
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.locale) private var locale
     @Environment(StoreManager.self) private var store
 
@@ -59,7 +58,7 @@ struct ContentView: View {
     /// One spacing constant used app-wide. Tweak to scale all gaps together.
     private static let pad: CGFloat = 32
     /// Minimum left-column width for the wide layout.
-    private static let leftColumnMinWidth: CGFloat = 200
+    private static let leftColumnMinWidth: CGFloat = 210
 
     private var isPhone: Bool {
         #if os(iOS)

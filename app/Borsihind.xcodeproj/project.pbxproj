@@ -495,6 +495,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphoneos*]" = ee.borsihind.refresh;
+				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphonesimulator*]" = ee.borsihind.refresh;
 				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -503,6 +505,8 @@
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphoneos*]" = fetch;
+				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphonesimulator*]" = fetch;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = "";
@@ -510,10 +514,6 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphoneos*]" = fetch;
-				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphonesimulator*]" = fetch;
-				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphoneos*]" = "ee.borsihind.refresh";
-				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphonesimulator*]" = "ee.borsihind.refresh";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -550,6 +550,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphoneos*]" = ee.borsihind.refresh;
+				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphonesimulator*]" = ee.borsihind.refresh;
 				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -558,6 +560,8 @@
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphoneos*]" = fetch;
+				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphonesimulator*]" = fetch;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = "";
@@ -565,10 +569,6 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphoneos*]" = fetch;
-				"INFOPLIST_KEY_UIBackgroundModes[sdk=iphonesimulator*]" = fetch;
-				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphoneos*]" = "ee.borsihind.refresh";
-				"INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers[sdk=iphonesimulator*]" = "ee.borsihind.refresh";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";

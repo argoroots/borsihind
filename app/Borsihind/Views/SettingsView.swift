@@ -64,7 +64,9 @@ struct SettingsView: View {
                 pricingSection
                 cheapestHoursSection
                 #if !os(tvOS)
-                notificationsSection
+                if store.isSubscribed {
+                    notificationsSection
+                }
                 #endif
                 subscriptionSection
                 disclaimerSection
@@ -76,13 +78,15 @@ struct SettingsView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    DismissButton(title: locale.t("Done"))
+                    if #available(iOS 26.0, macOS 26.0, *) {
+                        Button(role: .close) { dismiss() }
+                    } else {
+                        Button(locale.t("Done"), role: .cancel) { dismiss() }
+                    }
                 }
             }
         }
         #if os(macOS)
-        // Mac-only minimum window size. On iPhone, forcing a minWidth
-        // wider than the screen pushed the leading toolbar X off the edge.
         .frame(minWidth: 420, idealWidth: 480, minHeight: 380)
         #endif
     }
@@ -99,6 +103,8 @@ struct SettingsView: View {
         }
     }
 
+    /// Free users see only the Plan picker. Margin + Interval are
+    /// Börsihind+ features and surface via the bottom upsell section.
     private var pricingSection: some View {
         Section {
             Picker(locale.t("Grid service plan"), selection: $plan) {
@@ -122,9 +128,6 @@ struct SettingsView: View {
                         Text(locale.t(i.labelKey)).tag(i)
                     }
                 }
-            } else {
-                premiumLabeledRow(locale.t("Seller margin"))
-                premiumLabeledRow(locale.t("Interval"))
             }
         } header: {
             Text(locale.t("Pricing"))
@@ -133,55 +136,80 @@ struct SettingsView: View {
         }
     }
 
+    /// All slots in one Section. Each slot's Length row carries a small
+    /// numbered icon on the leading edge so the rows are unambiguously
+    /// attributable to that slot.
     private var cheapestHoursSection: some View {
         Section {
             if store.isSubscribed {
-                // Slots stay in fixed storage order — user reorders
-                // implicitly by changing each row's hours value.
-                slotRow(hours: $slot1Hours, deadline: $slot1Deadline)
-                slotRow(hours: $slot2Hours, deadline: $slot2Deadline)
-                slotRow(hours: $slot3Hours, deadline: $slot3Deadline)
-                slotRow(hours: $slot4Hours, deadline: $slot4Deadline)
+                slotRows(index: 0, hours: $slot1Hours, deadline: $slot1Deadline)
+                slotRows(index: 1, hours: $slot2Hours, deadline: $slot2Deadline)
+                slotRows(index: 2, hours: $slot3Hours, deadline: $slot3Deadline)
+                slotRows(index: 3, hours: $slot4Hours, deadline: $slot4Deadline)
             } else {
-                // Slot 1 deadline is the only free-tier control. Hours
-                // are pinned to 1h via `.constant(1)`.
-                slotRow(hours: .constant(1), deadline: $slot1Deadline, lengthLocked: true)
-                premiumLockedRow
-                premiumLockedRow
-                premiumLockedRow
+                slotRows(index: 0, hours: .constant(1), deadline: $slot1Deadline,
+                         lengthLocked: true)
             }
         } header: {
-            // Sub-label "Must end before" tags the right-column picker.
-            // `.textCase(nil)` keeps it readable — Form headers are
-            // force-uppercased by default.
-            HStack(alignment: .firstTextBaseline) {
-                Text(locale.t("Cheapest hours"))
-                Spacer()
-                Text(locale.t("Must end before"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .textCase(nil)
-            }
+            Text(locale.t("Cheapest hours"))
         } footer: {
             Text(locale.t("Cheapest hours explanation"))
         }
     }
 
+    /// Two rows for one slot. Length row carries the numbered icon;
+    /// deadline row's label is indented to align with "Length".
+    @ViewBuilder
+    private func slotRows(index: Int,
+                          hours: Binding<Int>,
+                          deadline: Binding<Int>,
+                          lengthLocked: Bool = false) -> some View {
+        Picker(selection: hours) {
+            Text(locale.t("Off")).tag(0)
+            ForEach(1...6, id: \.self) { n in
+                Text(hoursLabel(n)).tag(n)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "\(index + 1).circle.fill")
+                    .foregroundStyle(.tint)
+                    .font(.title3)
+                Text(locale.t("Length"))
+            }
+        }
+        .disabled(lengthLocked)
+
+        Picker(selection: deadline) {
+            Text(locale.t("Off")).tag(-1)
+            ForEach(0..<24) { hour in
+                Text(String(format: "%02d:00", hour)).tag(hour)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                // Invisible spacer matching the slot-icon footprint above
+                // so "Must end before" aligns with "Length".
+                Image(systemName: "\(index + 1).circle.fill")
+                    .font(.title3)
+                    .hidden()
+                Text(locale.t("Must end before"))
+            }
+        }
+        .disabled(hours.wrappedValue == 0)
+    }
+
     #if !os(tvOS)
+    /// Subscriber-only. Free users get the feature surfaced via the
+    /// bottom upsell section instead.
     private var notificationsSection: some View {
         Section {
-            if store.isSubscribed {
-                Picker(locale.t("Notify before"), selection: $notifyLeadMinutes) {
-                    Text(locale.t("Off")).tag(-1)
-                    Text(locale.t("At start")).tag(0)
-                    Text(locale.t("5 minutes")).tag(5)
-                    Text(locale.t("10 minutes")).tag(10)
-                    Text(locale.t("15 minutes")).tag(15)
-                    Text(locale.t("30 minutes")).tag(30)
-                    Text(locale.t("1 hour")).tag(60)
-                }
-            } else {
-                premiumLockedRow
+            Picker(locale.t("Notify before"), selection: $notifyLeadMinutes) {
+                Text(locale.t("Off")).tag(-1)
+                Text(locale.t("At start")).tag(0)
+                Text(locale.t("5 minutes")).tag(5)
+                Text(locale.t("10 minutes")).tag(10)
+                Text(locale.t("15 minutes")).tag(15)
+                Text(locale.t("30 minutes")).tag(30)
+                Text(locale.t("1 hour")).tag(60)
             }
         } header: {
             Text(locale.t("Notifications"))
@@ -191,30 +219,67 @@ struct SettingsView: View {
     }
     #endif
 
-    /// Always-visible subscription entry. Opens the paywall in management
-    /// mode for subscribers, in purchase mode otherwise.
+    /// Subscribers see a simple chevron row (taps into manage-plan).
+    /// Free users see the feature list + a Subscribe row, both routing
+    /// to the paywall.
+    @ViewBuilder
     private var subscriptionSection: some View {
-        Section {
-            Button {
-                requestPaywall()
-            } label: {
-                HStack {
-                    Text("Börsihind+")
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                        .font(.subheadline)
+        if store.isSubscribed {
+            Section {
+                Button {
+                    requestPaywall()
+                } label: {
+                    HStack {
+                        Text("Börsihind+")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.subheadline)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+        } else {
+            Section {
+                // Feature list — one row in the grouped card.
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(PremiumFeature.all, id: \.titleKey) { feature in
+                        PremiumFeatureRow(systemImage: feature.icon,
+                                          text: locale.t(feature.titleKey))
+                    }
+                }
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Subscribe row. Leading spacer matches the icon slot in
+                // `PremiumFeatureRow` (24pt width + 12pt spacing) so the
+                // "Subscribe" text aligns with the feature labels above
+                // instead of with the icons.
+                Button {
+                    requestPaywall()
+                } label: {
+                    HStack(spacing: 12) {
+                        Color.clear.frame(width: 24)
+                        Text(locale.t("Subscribe"))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.subheadline)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Börsihind+")
+            }
         }
     }
 
-    /// Footnote at the bottom of the Form. Borderless row (chrome stripped
-    /// via `.listRowBackground(.clear)` + zero insets) so it reads as a
-    /// disclaimer rather than a settings row. Tap resets `disclaimerShown`.
+    /// Borderless footnote at the bottom of the Form. Tap resets
+    /// `disclaimerShown` so the first-launch alert reappears next cold start.
     private var disclaimerSection: some View {
         Section {
             Text(locale.t("All prices shown in the app include VAT and are in cents per kilowatt-hour."))
@@ -233,52 +298,8 @@ struct SettingsView: View {
 
     // MARK: - Row builders
 
-    /// One cheapest-hours slot row: length on the left, deadline on the
-    /// right. Both are `Menu`-as-Picker so the row's content is plain
-    /// text + chevron — same visual weight as the Plan / Interval rows
-    /// above, so heights match.
-    @ViewBuilder
-    private func slotRow(hours: Binding<Int>, deadline: Binding<Int>,
-                         lengthLocked: Bool = false) -> some View {
-        // Deadline is meaningless when the slot is Off — disable the
-        // picker so the row reads as "no deadline applicable".
-        let deadlineEnabled = hours.wrappedValue > 0
-
-        LabeledContent {
-            // Right side = value position; iOS Form Pickers render the
-            // current value in secondary (gray), so we match. Hours 0...23
-            // are all valid (0 = midnight); `-1` is the Off sentinel.
-            menuPicker(
-                title: deadline.wrappedValue < 0
-                    ? locale.t("Off")
-                    : String(format: "%02d:00", deadline.wrappedValue),
-                selection: deadline,
-                style: deadlineEnabled ? .value : .disabled
-            ) {
-                Text(locale.t("Off")).tag(-1)
-                ForEach(0..<24) { hour in
-                    Text(String(format: "%02d:00", hour)).tag(hour)
-                }
-            }
-        } label: {
-            // Left side = title position; primary text so it reads like
-            // the rows above.
-            menuPicker(
-                title: hoursLabel(hours.wrappedValue),
-                selection: hours,
-                style: lengthLocked ? .disabled : .title
-            ) {
-                Text(locale.t("Off")).tag(0)
-                ForEach(1...6, id: \.self) { n in
-                    Text(hoursLabel(n)).tag(n)
-                }
-            }
-        }
-    }
-
-    /// Localized hour-count label. Singular vs. plural form, plus the
-    /// "Off" placeholder for `0`. Settings-only; the cards on the main
-    /// screen still use the compact `Nh` badge.
+    /// Localized hour-count label: singular / plural / Off. Settings-only;
+    /// the main-screen cards still use the compact `Nh` badge.
     private func hoursLabel(_ n: Int) -> String {
         switch n {
         case 0: return locale.t("Off")
@@ -288,84 +309,4 @@ struct SettingsView: View {
         }
     }
 
-    private enum MenuPickerStyle {
-        case title     // primary text — left side of a row
-        case value     // secondary text — right side of a row (matches Form Picker default)
-        case disabled  // muted, not interactive
-
-        var foreground: AnyShapeStyle {
-            switch self {
-            case .title:    AnyShapeStyle(.primary)
-            case .value:    AnyShapeStyle(.secondary)
-            case .disabled: AnyShapeStyle(.tertiary)
-            }
-        }
-
-        var enabled: Bool {
-            self != .disabled
-        }
-    }
-
-    /// Text-button styled menu picker. Renders as `[value ▾]` with the
-    /// supplied foreground style — `.buttonStyle(.plain)` is required or
-    /// the system auto-tints the label blue regardless of the
-    /// `foregroundStyle` modifier.
-    @ViewBuilder
-    private func menuPicker<Content: View>(
-        title: String,
-        selection: Binding<Int>,
-        style: MenuPickerStyle,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        Menu {
-            Picker("", selection: selection, content: content)
-                .labelsHidden()
-        } label: {
-            HStack(spacing: 4) {
-                Text(title)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-            }
-            .foregroundStyle(style.foreground)
-        }
-        .buttonStyle(.plain)
-        .disabled(!style.enabled)
-    }
-
-    /// Labeled premium-locked row: label on the left, "Börsihind+" tag on
-    /// the right. Used in the pricing section for the gated Margin / Interval.
-    private func premiumLabeledRow(_ label: String) -> some View {
-        Button {
-            requestPaywall()
-        } label: {
-            HStack {
-                Text(label).foregroundStyle(.primary)
-                Spacer()
-                Text("Börsihind+")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tint)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Centered-only premium-locked row used by the cheapest-hours and
-    /// notifications sections. Separator pinned to the leading edge so it
-    /// lines up with the editable rows above.
-    private var premiumLockedRow: some View {
-        Button {
-            requestPaywall()
-        } label: {
-            Text("Börsihind+")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.tint)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        #if !os(tvOS)
-        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-        #endif
-    }
 }

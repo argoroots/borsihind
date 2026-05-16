@@ -95,7 +95,11 @@ struct PaywallView: View {
             .frame(maxWidth: .infinity)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    DismissButton(title: locale.t("Done"))
+                    if #available(iOS 26.0, macOS 26.0, *) {
+                        Button(role: .close) { dismiss() }
+                    } else {
+                        Button(locale.t("Done"), role: .cancel) { dismiss() }
+                    }
                 }
             }
         }
@@ -112,7 +116,11 @@ struct PaywallView: View {
                 .storeButton(.hidden, for: .cancellation)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        DismissButton(title: locale.t("Done"))
+                        if #available(iOS 26.0, macOS 26.0, *) {
+                            Button(role: .close) { dismiss() }
+                        } else {
+                            Button(locale.t("Done"), role: .cancel) { dismiss() }
+                        }
                     }
                 }
         }
@@ -185,32 +193,11 @@ struct PaywallView: View {
 
     private var featureBullets: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PaywallBullet(systemImage: "clock",
-                          text: locale.t("2h, 3h and 4h cheapest windows"))
-            PaywallBullet(systemImage: "timer",
-                          text: locale.t("15-minute price intervals"))
-            PaywallBullet(systemImage: "eurosign",
-                          text: locale.t("Custom retailer margin"))
-            PaywallBullet(systemImage: "square.grid.2x2.fill",
-                          text: locale.t("Home Screen and Lock Screen widgets"))
+            ForEach(PremiumFeature.all, id: \.titleKey) { feature in
+                PremiumFeatureRow(systemImage: feature.icon,
+                                  text: locale.t(feature.titleKey))
+            }
         }
     }
 }
 
-/// Single feature row in the paywall hero.
-private struct PaywallBullet: View {
-    let systemImage: String
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Image(systemName: systemImage)
-                .foregroundStyle(.tint)
-                .font(.headline)
-                .frame(width: 24, alignment: .center)
-            Text(text)
-                .font(.body)
-                .multilineTextAlignment(.leading)
-        }
-    }
-}

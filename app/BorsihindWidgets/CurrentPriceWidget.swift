@@ -81,6 +81,14 @@ struct CurrentPriceWidgetView: View {
         (Language(rawValue: languageRaw) ?? .et).locale
     }
 
+    /// `"24,62 c/kWh"` / `"24,62 s/kWh"` — fills the localized
+    /// `"%@ c/kWh"` template so ET sees Estonian "s" and EN sees "c".
+    func priceWithUnit(_ value: Double?) -> String {
+        locale.t("%@ c/kWh")
+            .replacingOccurrences(of: "%@",
+                                  with: WidgetFormat.price(value, locale: locale))
+    }
+
     var body: some View {
         Group {
             if entry.isSubscribed {
@@ -127,7 +135,7 @@ private extension CurrentPriceWidgetView {
     var inlineView: some View {
         Group {
             if let snap = entry.snapshot {
-                Text("\(WidgetFormat.price(snap.currentTotal, locale: locale)) c/kWh")
+                Text(priceWithUnit(snap.currentTotal))
             } else {
                 Text("Börsihind")
             }
@@ -142,7 +150,7 @@ private extension CurrentPriceWidgetView {
                 Text(WidgetFormat.integer(entry.snapshot?.currentTotal))
                     .font(.system(size: 22, weight: .bold))
                     .monospacedDigit()
-                Text("c/kWh")
+                Text(locale.t("c/kWh"))
                     .font(.system(size: 9))
             }
         }
@@ -151,16 +159,22 @@ private extension CurrentPriceWidgetView {
     var rectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Börsihind").font(.caption2.weight(.semibold))
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
-                    .font(.title3.bold())
+                    .font(.headline.bold())
                     .monospacedDigit()
-                Text("c/kWh").font(.caption2)
+                Text(locale.t("c/kWh")).font(.caption2)
             }
+            // Lock-screen rectangular is narrow — scale down rather than
+            // truncate when the price + unit don't fit on one line.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             if let snap = entry.snapshot, let cheapest = snap.cheapestStart {
                 Text("\(cheapestHeader): \(cheapest, format: WidgetFormat.hourMinute24)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
     }
@@ -222,7 +236,7 @@ private extension CurrentPriceWidgetView {
             Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
                 .font(.system(size: largeFontSize, weight: .bold))
                 .monospacedDigit()
-            Text("c/kWh")
+            Text(locale.t("c/kWh"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -241,7 +255,7 @@ private extension CurrentPriceWidgetView {
                 Text(start, format: WidgetFormat.hourMinute24)
                     .font(.title2.bold())
                     .monospacedDigit()
-                Text("\(WidgetFormat.price(avg, locale: locale)) c/kWh")
+                Text(priceWithUnit(avg))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {

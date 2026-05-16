@@ -69,7 +69,7 @@ struct BorsihindApp: App {
         ContentView()
             .environment(\.locale, locale)
             .environment(store)
-            .frame(minWidth: 500, minHeight: 700)
+            .frame(minWidth: 510, minHeight: 700)
         #else
         ContentView()
             .environment(\.locale, locale)

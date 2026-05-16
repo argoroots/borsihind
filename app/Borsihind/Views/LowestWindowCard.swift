@@ -122,7 +122,12 @@ struct LowestWindowCard: View {
         if pct < 0 {
             return locale.t("%@% higher than now").replacingOccurrences(of: "%@", with: String(-pct))
         }
-        return locale.t("Same as now")
+        // Window starts at index 0 → it *is* the current slot. Future
+        // windows that just happen to match the running-now average
+        // keep the "same as now" wording.
+        return window.startIndex == 0
+            ? locale.t("Right now")
+            : locale.t("Same price as now")
     }
 
     /// Locked-card status line. Cheapest finder picks the minimum, so

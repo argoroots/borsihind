@@ -39,6 +39,12 @@ struct PriceEntry: Identifiable, Hashable, Sendable {
     var componentSum: Double {
         electricity + transmission + renewable + excise + supplySecurity
     }
+
+    /// Full price including marginal. Shared helper used everywhere a
+    /// `Double` total is needed (snapshot, cheapest-window math).
+    func total(withMargin marginal: Double) -> Double {
+        componentSum + marginal
+    }
 }
 
 enum Plan: String, CaseIterable, Identifiable, Sendable {

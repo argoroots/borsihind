@@ -50,12 +50,40 @@ struct PriceProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceEntry>) -> Void) {
-        // Refresh at the current slot's end so the visible price flips
-        // at the slot boundary; fall back to every 30 min when no
-        // snapshot is available.
-        let entry = currentEntry()
-        let next = entry.snapshot?.currentEnd ?? Date().addingTimeInterval(30 * 60)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let snap = SharedStorage.readSnapshot()
+        let isSubscribed = SharedStorage.isSubscribed
+        let now = Date()
+
+        // Without data, fall back to a single entry + retry in 30 min.
+        // The main app or BGAppRefreshTask will populate the snapshot
+        // eventually.
+        guard let snap, !snap.slotTotals.isEmpty else {
+            let entry = PriceEntry(date: now, snapshot: snap, isSubscribed: isSubscribed)
+            completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
+            return
+        }
+
+        // Pre-generate one timeline entry per upcoming slot boundary
+        // (15-min or 1-h, matching the user's interval) so the widget
+        // self-advances without depending on the main app or background
+        // task to wake. Each entry shares the same snapshot; the view
+        // picks the correct slot's price from `slotTotals` based on
+        // `entry.date`.
+        let slotDuration = TimeInterval(snap.slotMinutes * 60)
+        var entries: [PriceEntry] = [
+            PriceEntry(date: now, snapshot: snap, isSubscribed: isSubscribed),
+        ]
+        for i in 0..<snap.slotTotals.count {
+            let slotStart = snap.slotStart.addingTimeInterval(TimeInterval(i) * slotDuration)
+            if slotStart > now {
+                entries.append(PriceEntry(date: slotStart, snapshot: snap, isSubscribed: isSubscribed))
+            }
+        }
+
+        // Re-request a timeline once entries run out — the snapshot
+        // will likely have been refreshed by then.
+        let refreshAt = entries.last?.date.addingTimeInterval(slotDuration) ?? now.addingTimeInterval(60 * 60)
+        completion(Timeline(entries: entries, policy: .after(refreshAt)))
     }
 
     private func currentEntry() -> PriceEntry {
@@ -81,12 +109,44 @@ struct CurrentPriceWidgetView: View {
         (Language(rawValue: languageRaw) ?? .et).locale
     }
 
-    /// `"24,62 c/kWh"` / `"24,62 s/kWh"` — fills the localized
-    /// `"%@ c/kWh"` template so ET sees Estonian "s" and EN sees "c".
+    /// `"24,62 c/kWh"` / `"24,62 s/kWh"`. Fills the localized template.
     func priceWithUnit(_ value: Double?) -> String {
         locale.t("%@ c/kWh")
             .replacingOccurrences(of: "%@",
                                   with: WidgetFormat.price(value, locale: locale))
+    }
+
+    /// Slot index in `slotTotals` matching `entry.date`.
+    var entrySlotIndex: Int? {
+        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
+        let i = Int(entry.date.timeIntervalSince(snap.slotStart)
+                    / TimeInterval(snap.slotMinutes * 60))
+        return (0..<snap.slotTotals.count).contains(i) ? i : nil
+    }
+
+    /// Price for the slot containing `entry.date`.
+    var priceForEntry: Double? {
+        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
+        return snap.slotTotals[entrySlotIndex ?? 0]
+    }
+
+    /// Cheapest window starting at or after `entry.date`, at the user's
+    /// slot resolution. Same `PriceCompute` algorithm the app uses.
+    var cheapestForEntry: PriceCompute.WindowResult? {
+        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
+        let slotsPerHour = max(60 / snap.slotMinutes, 1)
+        let series = PriceCompute.SlotSeries(
+            totals: snap.slotTotals,
+            baseDate: snap.slotStart,
+            slotDuration: TimeInterval(snap.slotMinutes * 60)
+        )
+        return PriceCompute.cheapestWindow(
+            in: series,
+            spanSlots: max(snap.cheapestHours, 1) * slotsPerHour,
+            fromIndex: max(entrySlotIndex ?? 0, 0),
+            deadlineEnd: PriceCompute.nextOccurrence(ofHour: snap.selectedSlotDeadline,
+                                                     after: entry.date)
+        )
     }
 
     var body: some View {
@@ -134,8 +194,8 @@ private extension CurrentPriceWidgetView {
 
     var inlineView: some View {
         Group {
-            if let snap = entry.snapshot {
-                Text(priceWithUnit(snap.currentTotal))
+            if entry.snapshot != nil {
+                Text(priceWithUnit(priceForEntry))
             } else {
                 Text("Börsihind")
             }
@@ -147,7 +207,7 @@ private extension CurrentPriceWidgetView {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Text(WidgetFormat.integer(entry.snapshot?.currentTotal))
+                Text(WidgetFormat.integer(priceForEntry))
                     .font(.system(size: 22, weight: .bold))
                     .monospacedDigit()
                 Text(locale.t("c/kWh"))
@@ -160,7 +220,7 @@ private extension CurrentPriceWidgetView {
         VStack(alignment: .leading, spacing: 2) {
             Text("Börsihind").font(.caption2.weight(.semibold))
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
+                Text(WidgetFormat.price(priceForEntry, locale: locale))
                     .font(.headline.bold())
                     .monospacedDigit()
                 Text(locale.t("c/kWh")).font(.caption2)
@@ -169,8 +229,8 @@ private extension CurrentPriceWidgetView {
             // truncate when the price + unit don't fit on one line.
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            if let snap = entry.snapshot, let cheapest = snap.cheapestStart {
-                Text("\(cheapestHeader): \(cheapest, format: WidgetFormat.hourMinute24)")
+            if let cheapest = cheapestForEntry {
+                Text("\(cheapestHeader): \(cheapest.start, format: WidgetFormat.hourMinute24)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -196,11 +256,11 @@ private extension CurrentPriceWidgetView {
                              highlightedRange: highlightedRange,
                              midnightIndices: midnightIndices)
                     .frame(height: 28)
-            } else if let snap = entry.snapshot, let start = snap.cheapestStart {
+            } else if let cheapest = cheapestForEntry {
                 Text(cheapestHeader)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text(start, format: WidgetFormat.hourMinute24)
+                Text(cheapest.start, format: WidgetFormat.hourMinute24)
                     .font(.callout.bold())
                     .monospacedDigit()
             }
@@ -233,7 +293,7 @@ private extension CurrentPriceWidgetView {
                 .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(WidgetFormat.price(entry.snapshot?.currentTotal, locale: locale))
+            Text(WidgetFormat.price(priceForEntry, locale: locale))
                 .font(.system(size: largeFontSize, weight: .bold))
                 .monospacedDigit()
             Text(locale.t("c/kWh"))
@@ -249,13 +309,11 @@ private extension CurrentPriceWidgetView {
                 .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            if let snap = entry.snapshot,
-               let start = snap.cheapestStart,
-               let avg = snap.cheapestAverage {
-                Text(start, format: WidgetFormat.hourMinute24)
+            if let cheapest = cheapestForEntry {
+                Text(cheapest.start, format: WidgetFormat.hourMinute24)
                     .font(.title2.bold())
                     .monospacedDigit()
-                Text(priceWithUnit(avg))
+                Text(priceWithUnit(cheapest.average))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -277,28 +335,32 @@ private extension CurrentPriceWidgetView {
     }
 
     /// `hourlyTotals` indices covered by the selected cheapest window.
-    /// Drives the green highlight on the mini chart. Nil when the
-    /// window doesn't fall within the visible 24-hour horizon.
+    /// Drives the green highlight on the hourly mini chart. The
+    /// cheapest window is computed at slot resolution (15-min or 1-h)
+    /// — for the hourly chart, highlight every hour that overlaps the
+    /// window's time range.
     var highlightedRange: ClosedRange<Int>? {
         guard let snap = entry.snapshot,
-              let start = snap.cheapestHighlightStart,
+              let cheapest = cheapestForEntry,
               !snap.hourlyTotals.isEmpty
         else { return nil }
-        let end = start + max(snap.cheapestHours, 1) - 1
-        return start...min(end, snap.hourlyTotals.count - 1)
+        let startIdx = Int(cheapest.start.timeIntervalSince(snap.hourlyStart) / 3600)
+        // `end` is exclusive; -1s maps to the last touched hour's index.
+        let endIdx = Int(cheapest.end.addingTimeInterval(-1)
+                         .timeIntervalSince(snap.hourlyStart) / 3600)
+        let lo = max(startIdx, 0)
+        let hi = min(endIdx, snap.hourlyTotals.count - 1)
+        return lo <= hi ? lo...hi : nil
     }
 
     /// `hourlyTotals` indices at 00:00 — drives the day-divider line in
     /// the mini chart. Index 0 is excluded (nothing to divide from).
     var midnightIndices: Set<Int> {
-        guard let snap = entry.snapshot,
-              let start = snap.hourlyStart,
-              !snap.hourlyTotals.isEmpty
-        else { return [] }
+        guard let snap = entry.snapshot, !snap.hourlyTotals.isEmpty else { return [] }
         let cal = Calendar.current
         var out: Set<Int> = []
         for i in 1..<snap.hourlyTotals.count {
-            let date = start.addingTimeInterval(TimeInterval(i) * 3600)
+            let date = snap.hourlyStart.addingTimeInterval(TimeInterval(i) * 3600)
             if cal.component(.hour, from: date) == 0 {
                 out.insert(i)
             }

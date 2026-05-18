@@ -112,6 +112,13 @@ struct ContentView: View {
     /// Clamp to `[0, 6]` defensively. `0` = slot is off.
     private func clampedHours(_ h: Int) -> Int { min(max(h, 0), 6) }
 
+    /// Single watchable summarising all four slots — one `.onChange`
+    /// covers every slot edit, keeps the body's type checker happy.
+    private var slotConfigSignature: String {
+        "\(slot1Hours)/\(slot1Deadline)/\(slot2Hours)/\(slot2Deadline)"
+        + "/\(slot3Hours)/\(slot3Deadline)/\(slot4Hours)/\(slot4Deadline)"
+    }
+
     private var lowestWindows: [LowestWindow] {
         vm.lowestWindows(interval: effectiveInterval, marginal: effectiveMargin,
                          slots: effectiveSlots)
@@ -151,7 +158,7 @@ struct ContentView: View {
         .ignoresSafeArea(.container, edges: .bottom)
         .sheet(isPresented: $showSettings) { settingsSheet }
         .sheet(isPresented: $showPaywall) { PaywallView() }
-        .task { await refreshAll() }
+        .task { await fetchIfStaleAndRecompute() }
         .task {
             if !disclaimerShown { showDisclaimer = true }
         }
@@ -160,37 +167,30 @@ struct ContentView: View {
         } message: {
             Text(locale.t("All prices shown in the app include VAT and are in cents per kilowatt-hour."))
         }
-        .onChange(of: planRaw) { _, _ in
-            selectedDate = nil
-            Task { await refreshAll() }
-        }
-        .onChange(of: intervalRaw) { _, _ in
-            selectedDate = nil
-            Task { await refreshAll() }
-        }
-        .onChange(of: store.isSubscribed) { _, _ in
-            selectedDate = nil
-            Task { await refreshAll() }
-        }
-        .onChange(of: lowestRaw) { _, _ in updateWidgetSnapshot() }
-        .onChange(of: marginal) { _, _ in updateWidgetSnapshot() }
-        .onChange(of: notifyLeadMinutes) { _, _ in
-            Task { await rescheduleNotifications() }
-        }
+        // Plan / Interval = different upstream JSON → force fetch.
+        .onChange(of: planRaw)     { _, _ in selectedDate = nil; Task { await forceFetchAndRecompute() } }
+        .onChange(of: intervalRaw) { _, _ in selectedDate = nil; Task { await forceFetchAndRecompute() } }
+        // Subscription flip changes effective interval/margin — no fetch.
+        .onChange(of: store.isSubscribed) { _, _ in selectedDate = nil; Task { await recompute() } }
+        // Local-only settings.
+        .onChange(of: lowestRaw)           { _, _ in Task { await recompute() } }
+        .onChange(of: marginal)            { _, _ in Task { await recompute() } }
+        // All 8 slot bindings collapsed into one watched signature so
+        // the body's type-checker stays happy.
+        .onChange(of: slotConfigSignature) { _, _ in Task { await recompute() } }
+        .onChange(of: notifyLeadMinutes)   { _, _ in Task { await rescheduleNotifications() } }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             selectedDate = nil
             Task {
                 await store.refresh()
-                await refreshAll()
+                await fetchIfStaleAndRecompute()
             }
         }
         .onAppear {
-            // Minute ticker fires `refreshAll` whenever a new slot starts,
-            // matching the user's `Interval` cadence (15min or 1h).
-            vm.startMinuteTicker { Task { await refreshAll() } }
+            vm.startMinuteTicker { Task { await recompute() } }
             #if os(iOS)
-            BackgroundRefresh.handler = { await refreshAll() }
+            BackgroundRefresh.handler = { await forceFetchAndRecompute() }
             BackgroundRefresh.scheduleNext()
             #endif
         }
@@ -228,10 +228,8 @@ struct ContentView: View {
 
     @ViewBuilder
     private var content: some View {
-        // Outer GeometryReader so the layout choice sees the real outer
-        // size, not a child slot. Wrapped in ScrollView to host
-        // `.refreshable`; the inner content is sized to exactly the
-        // geometry so the view never actually scrolls.
+        // ScrollView hosts `.refreshable`; the inner content is sized to
+        // the geometry so it never actually scrolls.
         GeometryReader { geo in
             ScrollView {
                 Group {
@@ -252,7 +250,7 @@ struct ContentView: View {
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
             }
-            .refreshable { await refreshAll() }
+            .refreshable { await forceFetchAndRecompute() }
         }
     }
 
@@ -288,8 +286,8 @@ struct ContentView: View {
             .padding(.horizontal, pad)
             .padding(.top, pad)
 
-            // Pager header lives outside the TabView because `.page` style
-            // vertically centers each page and would push the title off-screen.
+            // Header lives outside the TabView so `.page` style doesn't
+            // vertically center it off-screen.
             VStack(spacing: 8) {
                 Text(phonePage == 0 ? locale.t("Cheapest hours") : "")
                     .textCase(.uppercase)
@@ -372,8 +370,7 @@ struct ContentView: View {
         .padding(pad)
     }
 
-    /// Two stacked sections sharing the left column equally — price+breakdown
-    /// on top, cheapest cards below. Each half vertically centers its content.
+    /// Two stacked half-height sections: price+breakdown then cheapest cards.
     private var leftColumn: some View {
         let pad = Self.pad
         let sectionGap = pad * 2
@@ -458,9 +455,8 @@ struct ContentView: View {
                 LowestWindowCard(
                     window: window,
                     isSelected: selectedLowest == window.slotIndex,
-                    // Slot 0 is free; 1-3 require Börsihind+. While
-                    // subscription state is resolving, treat all as unlocked
-                    // (`isReady = false` hides the inner data anyway).
+                    // Slot 0 free; 1-3 premium. Don't flash locked
+                    // chrome while subscription state is still loading.
                     isLocked: store.hasResolvedSubscriptionState
                         && window.slotIndex > 0
                         && !store.isSubscribed,
@@ -499,18 +495,31 @@ struct ContentView: View {
         return "\(entry.date.formatted(fmt)) – \(endDate.formatted(fmt))"
     }
 
-    /// Canonical "refresh everything" entry point. Fired by launch, scene
-    /// foreground, slot-boundary tick, BGAppRefreshTask wake, pull-to-refresh,
-    /// and settings changes — keeps chart + widget + notifications in sync
-    /// from a single code path.
-    private func refreshAll() async {
-        await vm.load(plan: Plan(rawValue: planRaw) ?? .v1, interval: effectiveInterval)
+    /// Re-derive everything from cached data (drops past slots, finds
+    /// cheapest, reschedules notifications, rewrites widget snapshot).
+    /// No network.
+    private func recompute() async {
+        vm.bumpNow()
         updateWidgetSnapshot()
         await rescheduleNotifications()
     }
 
-    /// Premium-only. Wipes pending notifications when the picker is Off or
-    /// the subscription lapses, so nothing fires unexpectedly.
+    /// Fetch if last successful fetch ≥ 3 h ago, then recompute.
+    private func fetchIfStaleAndRecompute() async {
+        await vm.loadIfStale(plan: Plan(rawValue: planRaw) ?? .v1,
+                             interval: effectiveInterval)
+        await recompute()
+    }
+
+    /// Force-fetch + recompute. Pull-to-refresh, plan/interval change,
+    /// BGAppRefreshTask wake.
+    private func forceFetchAndRecompute() async {
+        await vm.load(plan: Plan(rawValue: planRaw) ?? .v1,
+                      interval: effectiveInterval)
+        await recompute()
+    }
+
+    /// Premium-only. Wipes pending notifications when Off or unsubscribed.
     private func rescheduleNotifications() async {
         guard store.isSubscribed, notifyLeadMinutes >= 0 else {
             await NotificationScheduler.removeAll()
@@ -523,77 +532,17 @@ struct ContentView: View {
         )
     }
 
-    /// Write the latest visible state to the App Group so the widget can
-    /// render without re-fetching the network.
+    /// Write the App Group snapshot and reload widget timelines.
     private func updateWidgetSnapshot() {
         SharedStorage.isSubscribed = store.isSubscribed
-        guard let bar = vm.prices.first else { return }
-
-        // Selected slot's hours, falling back to the first active slot
-        // when the selection is invalid or turned off.
-        let slots = effectiveSlots
-        let pickedHours = selectedLowest.flatMap { id in
-            slots.first(where: { $0.id == id })?.hours
-        } ?? 0
-        let hours = pickedHours > 0
-            ? pickedHours
-            : (slots.first(where: { $0.hours > 0 })?.hours ?? 1)
-
-        let (hourlyStart, hourlyTotals) = widgetHourlyTotals()
-        let (cheapestIdx, cheapestAvg) = cheapestHourWindow(in: hourlyTotals, span: hours)
-        let cheapestStart = cheapestIdx.flatMap { idx in
-            hourlyStart?.addingTimeInterval(TimeInterval(idx * 3600))
-        }
-
-        SharedStorage.writeSnapshot(.init(
-            currentTotal: bar.componentSum + effectiveMargin,
-            currentStart: bar.date,
-            currentEnd: bar.date.addingTimeInterval(TimeInterval(effectiveInterval.minutes * 60)),
-            cheapestHours: hours,
-            cheapestStart: cheapestStart,
-            cheapestAverage: cheapestAvg,
-            hourlyTotals: hourlyTotals,
-            hourlyStart: hourlyStart,
-            cheapestHighlightStart: cheapestIdx,
-            writtenAt: Date()
-        ))
+        guard let snap = vm.snapshot(slots: effectiveSlots,
+                                     selectedSlotID: selectedLowest,
+                                     marginal: effectiveMargin)
+        else { return }
+        SharedStorage.writeSnapshot(snap)
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
-    }
-
-    /// Sliding-window minimum over hourly aggregates. Returns the start
-    /// index and the average c/kWh; `(nil, nil)` when not enough data.
-    private func cheapestHourWindow(in totals: [Double], span: Int) -> (idx: Int?, avg: Double?) {
-        guard span > 0, totals.count >= span else { return (nil, nil) }
-        var lowestSum = Double.infinity
-        var lowestIdx = 0
-        for i in 0...(totals.count - span) {
-            let sum = totals[i..<(i + span)].reduce(0, +)
-            if sum < lowestSum {
-                lowestSum = sum
-                lowestIdx = i
-            }
-        }
-        return (lowestIdx, lowestSum / Double(span))
-    }
-
-    /// Hour-aggregated totals (margin + VAT included) for the widget.
-    /// 15-min slots get averaged into their hour. No cap — Nord Pool can
-    /// publish up to ~48h ahead.
-    private func widgetHourlyTotals() -> (start: Date?, totals: [Double]) {
-        let cal = Calendar.current
-        let grouped = Dictionary(grouping: vm.prices) { entry in
-            cal.date(from: cal.dateComponents([.year, .month, .day, .hour], from: entry.date))
-                ?? entry.date
-        }
-        let sortedKeys = grouped.keys.sorted()
-        let totals = sortedKeys.map { key -> Double in
-            let entries = grouped[key, default: []]
-            let sum = entries.reduce(0.0) { $0 + $1.componentSum + effectiveMargin }
-            return sum / Double(max(entries.count, 1))
-        }
-        return (sortedKeys.first, totals)
     }
 }
 

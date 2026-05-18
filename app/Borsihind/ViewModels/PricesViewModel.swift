@@ -1,51 +1,94 @@
 import Foundation
 import Observation
 
-/// Owns price data and derived state. Fetches once; `prices` is filtered
-/// on every `now` tick so the chart slides forward without re-fetching.
-/// `startMinuteTicker` drives both the slide and the slot-boundary
-/// callback that triggers a full refresh.
+/// Single source of truth for price data. Pipeline:
+///   1. `load(...)` fetches both JSONs (user's interval + 1-h).
+///   2. `prices` / `hourlyPrices` filter past slots from `now`.
+///   3. Component sum + margin folded at compute time, not stored.
+///   4. `lowestWindows(...)` runs `PriceCompute.cheapestWindow` —
+///      same algorithm the widget uses.
+///   5. App reads `prices`; widget reads `snapshot(...)` output.
 @Observable
 @MainActor
 final class PricesViewModel {
-    /// Entire fetched price file. Filtering happens in `prices`.
+    /// Raw data at the user's interval.
     private(set) var rawPrices: [PriceEntry] = []
-    /// Tick that drives the per-minute filter recomputation.
+    /// Raw data at 1-h resolution. Used by the widget's mini chart so
+    /// bars match Nord Pool's published hourly prices (no averaging).
+    private(set) var hourlyRawPrices: [PriceEntry] = []
+    /// Per-minute tick driving the past-slot filter.
     private(set) var now: Date = .init()
-    /// Slot length used for the most recent `load(...)`.
+    /// Interval used for the most recent `load(...)`.
     private(set) var currentInterval: Interval = .fifteenMin
 
     var isLoading = false
     var errorMessage: String?
+    /// Last successful fetch timestamp. Drives the ≤ 3 h throttle.
+    private(set) var lastFetchDate: Date?
 
     private let service = PriceService()
     private var minuteTask: Task<Void, Never>?
-    /// Most recent rounded slot start the ticker observed. When it changes
-    /// between ticks, we crossed a slot boundary.
+    /// Most recent rounded slot start the ticker saw — for crossing detection.
     private var lastSlotStart: Date?
 
-    /// Slots at or after the current rounded-down slot. Recomputes on
-    /// any change to `rawPrices`, `now`, or `currentInterval`.
+    /// Past-slot filter at the user's interval.
     var prices: [PriceEntry] {
         let cutoff = Self.currentSlotStart(interval: currentInterval, now: now)
         return rawPrices.filter { $0.date >= cutoff }
     }
 
+    /// Past-slot filter at 1-h resolution.
+    var hourlyPrices: [PriceEntry] {
+        let cutoff = Self.currentSlotStart(interval: .oneHour, now: now)
+        return hourlyRawPrices.filter { $0.date >= cutoff }
+    }
+
+    /// Advance `now` to wall-clock time — re-filters `prices` without
+    /// re-fetching the network.
+    func bumpNow() {
+        now = Date()
+    }
+
+    /// Force-fetch both files in parallel. On 1-h interval the second
+    /// URL is identical, so we reuse. Resets the staleness clock.
     func load(plan: Plan, interval: Interval) async {
         currentInterval = interval
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
         do {
-            rawPrices = try await service.fetchPrices(plan: plan, interval: interval)
+            async let primary = service.fetchPrices(plan: plan, interval: interval)
+            if interval == .oneHour {
+                rawPrices = try await primary
+                hourlyRawPrices = rawPrices
+            } else {
+                async let hourly = service.fetchPrices(plan: plan, interval: .oneHour)
+                rawPrices = try await primary
+                hourlyRawPrices = (try? await hourly) ?? []
+            }
             now = Date()
+            lastFetchDate = Date()
         } catch {
             errorMessage = "load_failed"
         }
     }
 
-    /// Per-minute ticker. Bumps `now` (chart slide) and fires
-    /// `onSlotBoundary` whenever a new 15-min or 1-h slot has just begun.
+    /// Fetch only when last fetch is older than `maxAge` (default 3 h)
+    /// or unset. Returns `true` when a fetch actually ran.
+    @discardableResult
+    func loadIfStale(plan: Plan, interval: Interval,
+                     maxAge: TimeInterval = 3 * 3600) async -> Bool {
+        if let last = lastFetchDate,
+           Date().timeIntervalSince(last) < maxAge,
+           currentInterval == interval {
+            return false
+        }
+        await load(plan: plan, interval: interval)
+        return true
+    }
+
+    /// Per-minute ticker. Bumps `now` and fires `onSlotBoundary` when
+    /// a new 15-min or 1-h slot has begun.
     func startMinuteTicker(onSlotBoundary: (@MainActor () -> Void)? = nil) {
         minuteTask?.cancel()
         lastSlotStart = Self.currentSlotStart(interval: currentInterval, now: now)
@@ -82,19 +125,20 @@ final class PricesViewModel {
         return cal.date(from: comps) ?? now
     }
 
-    /// Average price of running an N-hour load starting NOW — apples-to-apples
-    /// baseline for the "% cheaper" badge. Nil when not enough future data.
+    /// Average of running an N-hour load starting NOW — baseline for
+    /// the "% cheaper" badge. Nil when not enough future data.
     func nowAverage(forHours hours: Int, interval: Interval, marginal: Double) -> Double? {
         let span = hours * interval.slotsPerHour
         let head = prices.prefix(span)
         guard head.count == span, span > 0 else { return nil }
-        let sum = head.reduce(0.0) { $0 + $1.componentSum + marginal }
-        return sum / Double(span)
+        return head.map { $0.total(withMargin: marginal) }.reduce(0, +) / Double(span)
     }
 
-    /// One cheapest window per input slot. Slots with `hours == 0` are
-    /// skipped. A slot whose deadline can't be satisfied falls back to
-    /// the unconstrained cheapest window with `missedDeadline` set.
+    /// Steps 3 + 4: fold margin into per-slot totals, then run the
+    /// shared cheapest-window finder per user slot. Slots with
+    /// `hours == 0` are skipped; a slot whose deadline can't be
+    /// satisfied falls back to the unconstrained cheapest with
+    /// `missedDeadline` set.
     func lowestWindows(interval: Interval, marginal: Double,
                        slots: [CheapestSlot]) -> [LowestWindow] {
         let visible = prices
@@ -112,66 +156,55 @@ final class PricesViewModel {
         }
     }
 
-    /// Next occurrence of HH:00 at or after `now`. Returns nil when the
-    /// hour is out of range (off sentinel is `-1`).
+    /// Resolve the user's deadline hour to an absolute date via the
+    /// shared helper — same logic the widget uses.
     private func deadlineDate(forHour hour: Int) -> Date? {
-        guard (0...23).contains(hour) else { return nil }
-        let cal = Calendar.current
-        var comps = cal.dateComponents([.year, .month, .day], from: now)
-        comps.hour = hour
-        guard var target = cal.date(from: comps) else { return nil }
-        if target <= now {
-            target = cal.date(byAdding: .day, value: 1, to: target) ?? target
-        }
-        return target
+        PriceCompute.nextOccurrence(ofHour: hour, after: now)
     }
 
+    /// Wrap `PriceCompute.cheapestWindow` and re-pack as `LowestWindow`.
     private func findLowest(in visible: [PriceEntry], span: Int,
                             slotIndex: Int, hours: Int,
                             interval: Interval, marginal: Double,
                             deadlineEnd: Date?) -> LowestWindow? {
-        guard visible.count >= span, span > 0 else { return nil }
-        let sums = visible.map { $0.componentSum + marginal }
-        let slotSeconds = TimeInterval(interval.minutes * 60)
-
-        // Pass 1: cheapest window respecting the deadline (if any).
-        var lowestSum = Double.infinity
-        var lowestIdx = -1
-        if let deadline = deadlineEnd {
-            for i in 0...(sums.count - span) {
-                let endDate = visible[i + span - 1].date.addingTimeInterval(slotSeconds)
-                if endDate > deadline { continue }
-                let s = sums[i..<(i + span)].reduce(0, +)
-                if s < lowestSum { lowestSum = s; lowestIdx = i }
-            }
+        guard let first = visible.first else { return nil }
+        let series = PriceCompute.SlotSeries(
+            totals: visible.map { $0.total(withMargin: marginal) },
+            baseDate: first.date,
+            slotDuration: TimeInterval(interval.minutes * 60)
+        )
+        guard let r = PriceCompute.cheapestWindow(in: series, spanSlots: span,
+                                                  deadlineEnd: deadlineEnd) else {
+            return nil
         }
-
-        // Fallback: no candidate fits the deadline → unconstrained
-        // cheapest, with `missedDeadline` set so the UI can warn.
-        let missed: Date?
-        if lowestIdx < 0 {
-            lowestSum = .infinity
-            for i in 0...(sums.count - span) {
-                let s = sums[i..<(i + span)].reduce(0, +)
-                if s < lowestSum { lowestSum = s; lowestIdx = i }
-            }
-            missed = deadlineEnd
-        } else {
-            missed = nil
-        }
-        guard lowestIdx >= 0 else { return nil }
-
-        let startEntry = visible[lowestIdx]
-        let endEntry = visible[lowestIdx + span - 1]
         return LowestWindow(
-            slotIndex: slotIndex,
-            hours: hours,
-            startIndex: lowestIdx,
-            endIndex: lowestIdx + span - 1,
-            start: startEntry.date,
-            end: endEntry.date.addingTimeInterval(slotSeconds),
-            averagePrice: lowestSum / Double(span),
-            missedDeadline: missed
+            slotIndex: slotIndex, hours: hours,
+            startIndex: r.startIndex, endIndex: r.endIndex,
+            start: r.start, end: r.end,
+            averagePrice: r.average, missedDeadline: r.missedDeadline
+        )
+    }
+
+    /// Step 5 (widget side): assemble the App Group snapshot. Centralised
+    /// here so all snapshot fields derive from the same `prices` /
+    /// `hourlyPrices` / margin source. ContentView just calls this and
+    /// writes the result.
+    func snapshot(slots: [CheapestSlot], selectedSlotID: Int?,
+                  marginal: Double) -> SharedStorage.Snapshot? {
+        guard let first = prices.first else { return nil }
+        let selected = slots.first { $0.id == selectedSlotID && $0.hours > 0 }
+            ?? slots.first { $0.hours > 0 }
+            ?? CheapestSlot(id: 0, hours: 1, deadline: -1)
+        let hourly = hourlyPrices
+        return SharedStorage.Snapshot(
+            slotTotals: prices.map { $0.total(withMargin: marginal) },
+            slotStart: first.date,
+            slotMinutes: currentInterval.minutes,
+            cheapestHours: selected.hours,
+            selectedSlotDeadline: selected.deadline,
+            hourlyTotals: hourly.map { $0.total(withMargin: marginal) },
+            hourlyStart: hourly.first?.date ?? first.date,
+            writtenAt: Date()
         )
     }
 }

@@ -2,16 +2,13 @@ import Foundation
 import Observation
 import StoreKit
 
-/// Owns the Börsihind+ subscription state. StoreKit 2 throughout:
-/// async/await, AsyncSequence transaction listener, JWS-verified
-/// entitlements. No server roundtrip — single-user app.
+/// Börsihind+ subscription state via StoreKit 2.
 ///
-/// Lifecycle:
-/// 1. `bootstrap()` (root scene's `.task`) spawns the `Transaction.updates`
-///    listener and primes products + entitlements.
-/// 2. UI reads `isSubscribed` to gate premium features.
-/// 3. `.subscriptionStatusTask` on the root scene fires for renewals,
-///    refunds, family-sharing changes, etc. → calls `refresh()`.
+/// - `bootstrap()` (on root scene `.task`) primes products + entitlements
+///   and spawns the `Transaction.updates` listener.
+/// - UI reads `isSubscribed` to gate premium features.
+/// - `.subscriptionStatusTask` on the root scene calls `refresh()` on
+///   renewals, refunds, family-sharing changes, etc.
 @Observable
 @MainActor
 final class StoreManager {
@@ -60,20 +57,17 @@ final class StoreManager {
     }
 
     /// Recompute `purchased` from BOTH `Transaction.currentEntitlements`
-    /// AND per-product `SubscriptionInfo.status`. Union of the two paths
-    /// catches active subs that the entitlement stream missed (a known
-    /// macOS cold-launch hiccup).
+    /// AND per-product `SubscriptionInfo.status`. The union catches
+    /// active subs the entitlement stream missed (macOS cold-launch hiccup).
     func refresh() async {
         var active: Set<String> = []
 
-        // Path 1: entitlement stream.
         for await result in Transaction.currentEntitlements {
             guard case .verified(let txn) = result, txn.revocationDate == nil
             else { continue }
             active.insert(txn.productID)
         }
 
-        // Path 2: per-product subscription status.
         if products.isEmpty { await loadProducts() }
         for product in products {
             guard let info = product.subscription,

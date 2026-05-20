@@ -33,6 +33,16 @@
         }
       }
     },
+    "%@: %@" : {
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
     "%@% cheaper than now" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -51,7 +51,12 @@ final class PricesViewModel {
 
     /// Force-fetch both files in parallel. On 1-h interval the second
     /// URL is identical, so we reuse. Resets the staleness clock.
+    ///
+    /// Reentrancy guard: if another `load` is already in flight, return
+    /// immediately. Prevents two simultaneous triggers (e.g. pull-to-
+    /// refresh + BGTask wake) from racing and clobbering each other.
     func load(plan: Plan, interval: Interval) async {
+        guard !isLoading else { return }
         currentInterval = interval
         isLoading = true
         errorMessage = nil

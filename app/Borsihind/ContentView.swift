@@ -170,8 +170,9 @@ struct ContentView: View {
         // Plan / Interval = different upstream JSON → force fetch.
         .onChange(of: planRaw)     { _, _ in selectedDate = nil; Task { await forceFetchAndRecompute() } }
         .onChange(of: intervalRaw) { _, _ in selectedDate = nil; Task { await forceFetchAndRecompute() } }
-        // Subscription flip changes effective interval/margin — no fetch.
-        .onChange(of: store.isSubscribed) { _, _ in selectedDate = nil; Task { await recompute() } }
+        // Subscription flip changes `effectiveInterval` → upstream URL
+        // changes too, so we must force-fetch.
+        .onChange(of: store.isSubscribed) { _, _ in selectedDate = nil; Task { await forceFetchAndRecompute() } }
         // Local-only settings.
         .onChange(of: lowestRaw)           { _, _ in Task { await recompute() } }
         .onChange(of: marginal)            { _, _ in Task { await recompute() } }

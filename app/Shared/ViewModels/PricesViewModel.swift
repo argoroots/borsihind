@@ -28,6 +28,9 @@ final class PricesViewModel {
 
     private let service = PriceService()
     private var minuteTask: Task<Void, Never>?
+    /// In-flight fetch. A new `load` cancels it and supersedes — the
+    /// latest requested (plan, interval) always wins.
+    private var loadTask: Task<Void, Never>?
     /// Most recent rounded slot start the ticker saw — for crossing detection.
     private var lastSlotStart: Date?
 
@@ -49,14 +52,21 @@ final class PricesViewModel {
         now = Date()
     }
 
-    /// Force-fetch both files in parallel. On 1-h interval the second
-    /// URL is identical, so we reuse. Resets the staleness clock.
-    ///
-    /// Reentrancy guard: if another `load` is already in flight, return
-    /// immediately. Prevents two simultaneous triggers (e.g. pull-to-
-    /// refresh + BGTask wake) from racing and clobbering each other.
+    /// Force-fetch both files in parallel. Cancels any in-flight load
+    /// and supersedes it, so the latest requested (plan, interval)
+    /// always wins — e.g. the launch 1-h fetch is replaced the moment
+    /// the subscription resolves to 15-min. Resets the staleness clock.
     func load(plan: Plan, interval: Interval) async {
-        guard !isLoading else { return }
+        loadTask?.cancel()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.performLoad(plan: plan, interval: interval)
+        }
+        loadTask = task
+        await task.value
+    }
+
+    private func performLoad(plan: Plan, interval: Interval) async {
         currentInterval = interval
         isLoading = true
         errorMessage = nil
@@ -74,7 +84,11 @@ final class PricesViewModel {
             now = Date()
             lastFetchDate = Date()
         } catch {
-            errorMessage = "load_failed"
+            // Cancelled (superseded) or network failure — leave existing
+            // data intact. Only surface genuine failures.
+            if !(error is CancellationError) {
+                errorMessage = "load_failed"
+            }
         }
     }
 

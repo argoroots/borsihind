@@ -32,7 +32,7 @@ struct CurrentPriceWidget: Widget {
 
 // MARK: - Timeline
 
-struct PriceEntry: TimelineEntry {
+struct PriceTimelineEntry: TimelineEntry {
     let date: Date
     let snapshot: SharedStorage.Snapshot?
     /// Mirrors `StoreManager.isSubscribed`, used to gate the widget
@@ -41,15 +41,15 @@ struct PriceEntry: TimelineEntry {
 }
 
 struct PriceProvider: TimelineProvider {
-    func placeholder(in context: Context) -> PriceEntry {
-        PriceEntry(date: Date(), snapshot: nil, isSubscribed: false)
+    func placeholder(in context: Context) -> PriceTimelineEntry {
+        PriceTimelineEntry(date: Date(), snapshot: nil, isSubscribed: false)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (PriceEntry) -> Void) {
+    func getSnapshot(in context: Context, completion: @escaping (PriceTimelineEntry) -> Void) {
         completion(currentEntry())
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<PriceEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<PriceTimelineEntry>) -> Void) {
         let snap = SharedStorage.readSnapshot()
         let isSubscribed = SharedStorage.isSubscribed
         let now = Date()
@@ -58,36 +58,24 @@ struct PriceProvider: TimelineProvider {
         // The main app or BGAppRefreshTask will populate the snapshot
         // eventually.
         guard let snap, !snap.slotTotals.isEmpty else {
-            let entry = PriceEntry(date: now, snapshot: snap, isSubscribed: isSubscribed)
+            let entry = PriceTimelineEntry(date: now, snapshot: snap, isSubscribed: isSubscribed)
             completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
             return
         }
 
-        // Pre-generate one timeline entry per upcoming slot boundary
-        // (15-min or 1-h, matching the user's interval) so the widget
-        // self-advances without depending on the main app or background
-        // task to wake. Each entry shares the same snapshot; the view
-        // picks the correct slot's price from `slotTotals` based on
-        // `entry.date`.
-        let slotDuration = TimeInterval(snap.slotMinutes * 60)
-        var entries: [PriceEntry] = [
-            PriceEntry(date: now, snapshot: snap, isSubscribed: isSubscribed),
-        ]
-        for i in 0..<snap.slotTotals.count {
-            let slotStart = snap.slotStart.addingTimeInterval(TimeInterval(i) * slotDuration)
-            if slotStart > now {
-                entries.append(PriceEntry(date: slotStart, snapshot: snap, isSubscribed: isSubscribed))
-            }
+        // One entry per upcoming slot boundary so the widget self-advances
+        // without depending on the app or a background task to wake. Each
+        // entry shares the snapshot; the view picks the slot matching
+        // `entry.date`. Boundary math is shared with the watch complication.
+        let timeline = snap.timelineDates(after: now)
+        let entries = timeline.dates.map {
+            PriceTimelineEntry(date: $0, snapshot: snap, isSubscribed: isSubscribed)
         }
-
-        // Re-request a timeline once entries run out — the snapshot
-        // will likely have been refreshed by then.
-        let refreshAt = entries.last?.date.addingTimeInterval(slotDuration) ?? now.addingTimeInterval(60 * 60)
-        completion(Timeline(entries: entries, policy: .after(refreshAt)))
+        completion(Timeline(entries: entries, policy: .after(timeline.refreshAfter)))
     }
 
-    private func currentEntry() -> PriceEntry {
-        PriceEntry(
+    private func currentEntry() -> PriceTimelineEntry {
+        PriceTimelineEntry(
             date: Date(),
             snapshot: SharedStorage.readSnapshot(),
             isSubscribed: SharedStorage.isSubscribed
@@ -98,7 +86,7 @@ struct PriceProvider: TimelineProvider {
 // MARK: - Root view
 
 struct CurrentPriceWidgetView: View {
-    let entry: PriceEntry
+    let entry: PriceTimelineEntry
     @Environment(\.widgetFamily) private var family
 
     /// Read the user's language from shared storage. The widget process
@@ -109,44 +97,25 @@ struct CurrentPriceWidgetView: View {
         (Language(rawValue: languageRaw) ?? .et).locale
     }
 
+    /// Locale price string, "—" when no data. Shared `Double.priceString`.
+    func priceString(_ value: Double?) -> String {
+        value?.priceString(locale: locale) ?? "—"
+    }
+
+    /// Whole-cent string for tight glyphs, "—" when no data.
+    func cents(_ value: Double?) -> String { value?.centsString ?? "—" }
+
     /// `"24,62 c/kWh"` / `"24,62 s/kWh"`. Fills the localized template.
     func priceWithUnit(_ value: Double?) -> String {
-        locale.t("%@ c/kWh")
-            .replacingOccurrences(of: "%@",
-                                  with: WidgetFormat.price(value, locale: locale))
+        locale.t("%@ c/kWh").replacingOccurrences(of: "%@", with: priceString(value))
     }
 
-    /// Slot index in `slotTotals` matching `entry.date`.
-    var entrySlotIndex: Int? {
-        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
-        let i = Int(entry.date.timeIntervalSince(snap.slotStart)
-                    / TimeInterval(snap.slotMinutes * 60))
-        return (0..<snap.slotTotals.count).contains(i) ? i : nil
-    }
+    /// Price for the slot containing `entry.date` (shared derivation).
+    var priceForEntry: Double? { entry.snapshot?.price(at: entry.date) }
 
-    /// Price for the slot containing `entry.date`.
-    var priceForEntry: Double? {
-        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
-        return snap.slotTotals[entrySlotIndex ?? 0]
-    }
-
-    /// Cheapest window starting at or after `entry.date`, at the user's
-    /// slot resolution. Same `PriceCompute` algorithm the app uses.
+    /// Cheapest window at or after `entry.date` (shared derivation).
     var cheapestForEntry: PriceCompute.WindowResult? {
-        guard let snap = entry.snapshot, !snap.slotTotals.isEmpty else { return nil }
-        let slotsPerHour = max(60 / snap.slotMinutes, 1)
-        let series = PriceCompute.SlotSeries(
-            totals: snap.slotTotals,
-            baseDate: snap.slotStart,
-            slotDuration: TimeInterval(snap.slotMinutes * 60)
-        )
-        return PriceCompute.cheapestWindow(
-            in: series,
-            spanSlots: max(snap.cheapestHours, 1) * slotsPerHour,
-            fromIndex: max(entrySlotIndex ?? 0, 0),
-            deadlineEnd: PriceCompute.nextOccurrence(ofHour: snap.selectedSlotDeadline,
-                                                     after: entry.date)
-        )
+        entry.snapshot?.cheapestWindow(at: entry.date)
     }
 
     var body: some View {
@@ -207,7 +176,7 @@ private extension CurrentPriceWidgetView {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Text(WidgetFormat.integer(priceForEntry))
+                Text(cents(priceForEntry))
                     .font(.system(size: 22, weight: .bold))
                     .monospacedDigit()
                 Text(locale.t("c/kWh"))
@@ -220,7 +189,7 @@ private extension CurrentPriceWidgetView {
         VStack(alignment: .leading, spacing: 2) {
             Text("Börsihind").font(.caption2.weight(.semibold))
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(WidgetFormat.price(priceForEntry, locale: locale))
+                Text(priceString(priceForEntry))
                     .font(.headline.bold())
                     .monospacedDigit()
                 Text(locale.t("c/kWh")).font(.caption2)
@@ -230,7 +199,7 @@ private extension CurrentPriceWidgetView {
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             if let cheapest = cheapestForEntry {
-                Text("\(cheapestHeader): \(cheapest.start, format: WidgetFormat.hourMinute24)")
+                Text("\(cheapestHeader): \(cheapest.start, format: Date.VerbatimFormatStyle.hourMinute24)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -260,7 +229,7 @@ private extension CurrentPriceWidgetView {
                 Text(cheapestHeader)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text(cheapest.start, format: WidgetFormat.hourMinute24)
+                Text(cheapest.start, format: Date.VerbatimFormatStyle.hourMinute24)
                     .font(.callout.bold())
                     .monospacedDigit()
             }
@@ -293,7 +262,7 @@ private extension CurrentPriceWidgetView {
                 .textCase(.uppercase)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(WidgetFormat.price(priceForEntry, locale: locale))
+            Text(priceString(priceForEntry))
                 .font(.system(size: largeFontSize, weight: .bold))
                 .monospacedDigit()
             Text(locale.t("c/kWh"))
@@ -310,7 +279,7 @@ private extension CurrentPriceWidgetView {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             if let cheapest = cheapestForEntry {
-                Text(cheapest.start, format: WidgetFormat.hourMinute24)
+                Text(cheapest.start, format: Date.VerbatimFormatStyle.hourMinute24)
                     .font(.title2.bold())
                     .monospacedDigit()
                 Text(priceWithUnit(cheapest.average))
@@ -367,31 +336,6 @@ private extension CurrentPriceWidgetView {
         }
         return out
     }
-}
-
-// MARK: - Formatting
-
-/// Stateless formatting helpers. `enum` rather than `struct` so it's
-/// clearly a namespace, not an instantiable type.
-private enum WidgetFormat {
-    /// "24,62" / "24.62" with placeholder. Locale picks the separator.
-    static func price(_ value: Double?, locale: Locale = .current) -> String {
-        guard let value else { return "—" }
-        return value.formatted(.number.precision(.fractionLength(2)).locale(locale))
-    }
-
-    /// Whole-number rounded — for tight spaces (circular complication).
-    static func integer(_ value: Double?) -> String {
-        guard let value else { return "—" }
-        return "\(Int(value.rounded()))"
-    }
-
-    /// 24-hour HH:mm regardless of locale (matches the main app).
-    static let hourMinute24 = Date.VerbatimFormatStyle(
-        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-        timeZone: .current,
-        calendar: .current
-    )
 }
 
 // MARK: - Mini bar chart

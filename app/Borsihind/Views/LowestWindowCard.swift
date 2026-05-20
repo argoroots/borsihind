@@ -88,7 +88,7 @@ struct LowestWindowCard: View {
                     .accessibilityLabel(locale.t("Deadline warning"))
                 }
                 Spacer()
-                Text(window.averagePrice.formatted(.number.precision(.fractionLength(2)).locale(locale)))
+                Text(window.averagePrice.priceString(locale: locale))
                     .font(.headline.weight(.regular))
                     .foregroundStyle(.primary)
             }

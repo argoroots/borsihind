@@ -1,9 +1,8 @@
 import SwiftUI
 
 extension UserDefaults {
-    /// App Group-backed defaults shared between the main app and the
-    /// widget extension. Persists the language preference so both
-    /// processes see the same value.
+    /// App Group-backed defaults shared across the app and its extensions.
+    /// Persists the language preference so every process sees one value.
     static let shared = UserDefaults(suiteName: SharedStorage.appGroupID) ?? .standard
 }
 
@@ -49,6 +48,17 @@ extension Locale {
         bundleCache.setObject(bundle, forKey: code as NSString)
         return bundle
     }
+}
+
+extension Double {
+    /// Locale-aware price number, 2 decimals by default ("24,62" / "24.62").
+    /// One formatter shared by the app, widget, watch, and complication.
+    func priceString(locale: Locale, fractionDigits: Int = 2) -> String {
+        formatted(.number.precision(.fractionLength(fractionDigits)).locale(locale))
+    }
+
+    /// Whole-cent rounded string for tight glyphs ("25").
+    var centsString: String { "\(Int(rounded()))" }
 }
 
 extension Date.VerbatimFormatStyle {

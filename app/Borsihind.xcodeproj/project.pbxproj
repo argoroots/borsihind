@@ -7,62 +7,117 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3D758BF22FADD0D3008601D1 /* Borsihind.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3D758BF12FADD0D3008601D1 /* Borsihind.storekit */; };
+		3D1EA7872FBDB1DA00625B50 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */; };
+		3D1EA7882FBDB1DA00625B50 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */; };
+		3D1EA7952FBDB1DB00625B50 /* Complication.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3D1EA7862FBDB1DA00625B50 /* Complication.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3D758BFC2FAE13EF008601D1 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */; };
 		3D758BFE2FAE13EF008601D1 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */; };
-		3D758C092FAE13F1008601D1 /* BorsihindWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */; platformFilters = (ios, maccatalyst, macos, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3D758C092FAE13F1008601D1 /* Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3D758BF92FAE13EF008601D1 /* Widget.appex */; platformFilters = (ios, maccatalyst, macos, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3DCBB4702FBD9D5F00C1F6A8 /* Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 3DCBB4662FBD9D5D00C1F6A8 /* Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3D1EA7932FBDB1DB00625B50 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DC4174A2FAB63920085B651 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3D1EA7852FBDB1DA00625B50;
+			remoteInfo = Complication;
+		};
 		3D758C072FAE13F1008601D1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3DC4174A2FAB63920085B651 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 3D758BF82FAE13EF008601D1;
-			remoteInfo = BorsihindWidgetsExtension;
+			remoteInfo = Widget;
+		};
+		3DCBB46E2FBD9D5F00C1F6A8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DC4174A2FAB63920085B651 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3DCBB4652FBD9D5D00C1F6A8;
+			remoteInfo = Watch;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		3D1EA7962FBDB1DB00625B50 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3D1EA7952FBDB1DB00625B50 /* Complication.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3D758C0E2FAE13F1008601D1 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				3D758C092FAE13F1008601D1 /* BorsihindWidgetsExtension.appex in Embed Foundation Extensions */,
+				3D758C092FAE13F1008601D1 /* Widget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DCBB4742FBD9D5F00C1F6A8 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				3DCBB4702FBD9D5F00C1F6A8 /* Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3D1EA7862FBDB1DA00625B50 /* Complication.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Complication.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D758BF12FADD0D3008601D1 /* Borsihind.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Borsihind.storekit; sourceTree = "<group>"; };
-		3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BorsihindWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D758BF92FAE13EF008601D1 /* Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D758BFB2FAE13EF008601D1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
 		3D758BFD2FAE13EF008601D1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
-		3D758CD62FAE1965008601D1 /* BorsihindWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BorsihindWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		3DC417522FAB63920085B651 /* Borsihind.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Borsihind.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DCBB4662FBD9D5D00C1F6A8 /* Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Watch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		3D758C0A2FAE13F1008601D1 /* Exceptions for "BorsihindWidgets" folder in "BorsihindWidgetsExtension" target */ = {
+		3D1EA7992FBDB1DB00625B50 /* Exceptions for "Complication" folder in "Complication" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */;
+			target = 3D1EA7852FBDB1DA00625B50 /* Complication */;
+		};
+		3D758C0A2FAE13F1008601D1 /* Exceptions for "Widget" folder in "Widget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3D758BF82FAE13EF008601D1 /* Widget */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */ = {
+		3D1EA7892FBDB1DA00625B50 /* Complication */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				3D758C0A2FAE13F1008601D1 /* Exceptions for "BorsihindWidgets" folder in "BorsihindWidgetsExtension" target */,
+				3D1EA7992FBDB1DB00625B50 /* Exceptions for "Complication" folder in "Complication" target */,
 			);
-			path = BorsihindWidgets;
+			path = Complication;
+			sourceTree = "<group>";
+		};
+		3D758BFF2FAE13EF008601D1 /* Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3D758C0A2FAE13F1008601D1 /* Exceptions for "Widget" folder in "Widget" target */,
+			);
+			path = Widget;
 			sourceTree = "<group>";
 		};
 		3D7700000000000000000001 /* Shared */ = {
@@ -75,9 +130,23 @@
 			path = Borsihind;
 			sourceTree = "<group>";
 		};
+		3DCBB4672FBD9D5D00C1F6A8 /* Watch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Watch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3D1EA7832FBDB1DA00625B50 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3D1EA7882FBDB1DA00625B50 /* SwiftUI.framework in Frameworks */,
+				3D1EA7872FBDB1DA00625B50 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3D758BF62FAE13EF008601D1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -88,6 +157,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		3DC4174F2FAB63920085B651 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DCBB4632FBD9D5D00C1F6A8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -109,11 +185,12 @@
 		3DC417492FAB63920085B651 = {
 			isa = PBXGroup;
 			children = (
-				3D758CD62FAE1965008601D1 /* BorsihindWidgetsExtension.entitlements */,
 				3D758BF12FADD0D3008601D1 /* Borsihind.storekit */,
 				3DC417542FAB63920085B651 /* Borsihind */,
-				3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */,
+				3D758BFF2FAE13EF008601D1 /* Widget */,
 				3D7700000000000000000001 /* Shared */,
+				3DCBB4672FBD9D5D00C1F6A8 /* Watch */,
+				3D1EA7892FBDB1DA00625B50 /* Complication */,
 				3D758BFA2FAE13EF008601D1 /* Frameworks */,
 				3DC417532FAB63920085B651 /* Products */,
 			);
@@ -123,7 +200,9 @@
 			isa = PBXGroup;
 			children = (
 				3DC417522FAB63920085B651 /* Borsihind.app */,
-				3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */,
+				3D758BF92FAE13EF008601D1 /* Widget.appex */,
+				3DCBB4662FBD9D5D00C1F6A8 /* Watch.app */,
+				3D1EA7862FBDB1DA00625B50 /* Complication.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -131,9 +210,32 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */ = {
+		3D1EA7852FBDB1DA00625B50 /* Complication */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "BorsihindWidgetsExtension" */;
+			buildConfigurationList = 3D1EA79A2FBDB1DB00625B50 /* Build configuration list for PBXNativeTarget "Complication" */;
+			buildPhases = (
+				3D1EA7822FBDB1DA00625B50 /* Sources */,
+				3D1EA7832FBDB1DA00625B50 /* Frameworks */,
+				3D1EA7842FBDB1DA00625B50 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3D1EA7892FBDB1DA00625B50 /* Complication */,
+				3D7700000000000000000001 /* Shared */,
+			);
+			name = Complication;
+			packageProductDependencies = (
+			);
+			productName = Complication;
+			productReference = 3D1EA7862FBDB1DA00625B50 /* Complication.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		3D758BF82FAE13EF008601D1 /* Widget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "Widget" */;
 			buildPhases = (
 				3D758BF52FAE13EF008601D1 /* Sources */,
 				3D758BF62FAE13EF008601D1 /* Frameworks */,
@@ -144,14 +246,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				3D758BFF2FAE13EF008601D1 /* BorsihindWidgets */,
+				3D758BFF2FAE13EF008601D1 /* Widget */,
 				3D7700000000000000000001 /* Shared */,
 			);
-			name = BorsihindWidgetsExtension;
+			name = Widget;
 			packageProductDependencies = (
 			);
-			productName = BorsihindWidgetsExtension;
-			productReference = 3D758BF92FAE13EF008601D1 /* BorsihindWidgetsExtension.appex */;
+			productName = Widget;
+			productReference = 3D758BF92FAE13EF008601D1 /* Widget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		3DC417512FAB63920085B651 /* Borsihind */ = {
@@ -162,11 +264,13 @@
 				3DC4174F2FAB63920085B651 /* Frameworks */,
 				3DC417502FAB63920085B651 /* Resources */,
 				3D758C0E2FAE13F1008601D1 /* Embed Foundation Extensions */,
+				3DCBB4742FBD9D5F00C1F6A8 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				3D758C082FAE13F1008601D1 /* PBXTargetDependency */,
+				3DCBB46F2FBD9D5F00C1F6A8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3D7700000000000000000001 /* Shared */,
@@ -179,6 +283,31 @@
 			productReference = 3DC417522FAB63920085B651 /* Borsihind.app */;
 			productType = "com.apple.product-type.application";
 		};
+		3DCBB4652FBD9D5D00C1F6A8 /* Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3DCBB4712FBD9D5F00C1F6A8 /* Build configuration list for PBXNativeTarget "Watch" */;
+			buildPhases = (
+				3DCBB4622FBD9D5D00C1F6A8 /* Sources */,
+				3DCBB4632FBD9D5D00C1F6A8 /* Frameworks */,
+				3DCBB4642FBD9D5D00C1F6A8 /* Resources */,
+				3D1EA7962FBDB1DB00625B50 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3D1EA7942FBDB1DB00625B50 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3D7700000000000000000001 /* Shared */,
+				3DCBB4672FBD9D5D00C1F6A8 /* Watch */,
+			);
+			name = Watch;
+			packageProductDependencies = (
+			);
+			productName = Watch;
+			productReference = 3DCBB4662FBD9D5D00C1F6A8 /* Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -186,14 +315,20 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					3D1EA7852FBDB1DA00625B50 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					3D758BF82FAE13EF008601D1 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 					3DC417512FAB63920085B651 = {
 						CreatedOnToolsVersion = 26.4.1;
+					};
+					3DCBB4652FBD9D5D00C1F6A8 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -213,12 +348,21 @@
 			projectRoot = "";
 			targets = (
 				3DC417512FAB63920085B651 /* Borsihind */,
-				3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */,
+				3D758BF82FAE13EF008601D1 /* Widget */,
+				3DCBB4652FBD9D5D00C1F6A8 /* Watch */,
+				3D1EA7852FBDB1DA00625B50 /* Complication */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		3D1EA7842FBDB1DA00625B50 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3D758BF72FAE13EF008601D1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -230,13 +374,26 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3D758BF22FADD0D3008601D1 /* Borsihind.storekit in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DCBB4642FBD9D5D00C1F6A8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3D1EA7822FBDB1DA00625B50 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3D758BF52FAE13EF008601D1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -251,9 +408,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3DCBB4622FBD9D5D00C1F6A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3D1EA7942FBDB1DB00625B50 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3D1EA7852FBDB1DA00625B50 /* Complication */;
+			targetProxy = 3D1EA7932FBDB1DB00625B50 /* PBXContainerItemProxy */;
+		};
 		3D758C082FAE13F1008601D1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			platformFilters = (
@@ -262,27 +431,102 @@
 				macos,
 				xros,
 			);
-			target = 3D758BF82FAE13EF008601D1 /* BorsihindWidgetsExtension */;
+			target = 3D758BF82FAE13EF008601D1 /* Widget */;
 			targetProxy = 3D758C072FAE13F1008601D1 /* PBXContainerItemProxy */;
+		};
+		3DCBB46F2FBD9D5F00C1F6A8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 3DCBB4652FBD9D5D00C1F6A8 /* Watch */;
+			targetProxy = 3DCBB46E2FBD9D5F00C1F6A8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		3D1EA7972FBDB1DB00625B50 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Complication/Complication.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Complication/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch.complication;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		3D1EA7982FBDB1DB00625B50 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Complication/Complication.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Complication/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch.complication;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		3D758C0C2FAE13F1008601D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = BorsihindWidgetsExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = BorsihindWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = BorsihindWidgets;
+				INFOPLIST_FILE = Widget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -296,19 +540,20 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.2.1;
-				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.BorsihindWidgets;
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.4;
 			};
 			name = Debug;
@@ -318,16 +563,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = BorsihindWidgetsExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = BorsihindWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = BorsihindWidgets;
+				INFOPLIST_FILE = Widget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -341,19 +586,20 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.2.1;
-				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.BorsihindWidgets;
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.4;
 			};
 			name = Release;
@@ -487,7 +733,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -518,7 +764,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -542,7 +788,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -573,7 +819,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -590,10 +836,88 @@
 			};
 			name = Release;
 		};
+		3DCBB4722FBD9D5F00C1F6A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Watch/Watch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = ee.borsihind;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		3DCBB4732FBD9D5F00C1F6A8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Watch/Watch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = 6B4F7S5J46;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Börsihind";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = ee.borsihind;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "BorsihindWidgetsExtension" */ = {
+		3D1EA79A2FBDB1DB00625B50 /* Build configuration list for PBXNativeTarget "Complication" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3D1EA7972FBDB1DB00625B50 /* Debug */,
+				3D1EA7982FBDB1DB00625B50 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3D758C0B2FAE13F1008601D1 /* Build configuration list for PBXNativeTarget "Widget" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3D758C0C2FAE13F1008601D1 /* Debug */,
@@ -616,6 +940,15 @@
 			buildConfigurations = (
 				3DC4175E2FAB63930085B651 /* Debug */,
 				3DC4175F2FAB63930085B651 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3DCBB4712FBD9D5F00C1F6A8 /* Build configuration list for PBXNativeTarget "Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3DCBB4722FBD9D5F00C1F6A8 /* Debug */,
+				3DCBB4732FBD9D5F00C1F6A8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

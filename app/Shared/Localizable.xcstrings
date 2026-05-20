@@ -11,6 +11,26 @@
     "—" : {
 
     },
+    "%@ – %@" : {
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ – %2$@"
+          }
+        }
+      }
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
     "%@ c/kWh" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -65,7 +85,13 @@
         }
       }
     },
+    "%lld" : {
+
+    },
     "%lldh" : {
+
+    },
+    "0" : {
 
     },
     "1 hour" : {
@@ -359,6 +385,17 @@
         }
       }
     },
+    "Graph" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graafik"
+          }
+        }
+      }
+    },
     "Grid service plan" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -369,6 +406,9 @@
           }
         }
       }
+    },
+    "Hetkehind ja odavaim tund." : {
+
     },
     "Hetkehind koos kõikide tasudega. Pluss odavaim tund." : {
 
@@ -560,6 +600,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Taastuvenergia tasu"
+          }
+        }
+      }
+    },
+    "Retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "et" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proovi uuesti"
           }
         }
       }

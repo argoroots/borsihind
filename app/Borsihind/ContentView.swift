@@ -37,6 +37,8 @@ struct ContentView: View {
     @AppStorage("phonePage") private var phonePage: Int = 0
     /// True once the first-launch disclaimer alert has been acknowledged.
     @AppStorage("disclaimerShown") private var disclaimerShown: Bool = false
+    /// Language — read here only to forward to the watch.
+    @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
 
     // MARK: - Local state
 
@@ -193,6 +195,7 @@ struct ContentView: View {
             #if os(iOS)
             BackgroundRefresh.handler = { await forceFetchAndRecompute() }
             BackgroundRefresh.scheduleNext()
+            WatchConnectivityProvider.shared.activate()
             #endif
         }
         .onDisappear { vm.stopMinuteTicker() }
@@ -416,7 +419,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 4) {
-                Text(currentTotal.formatted(.number.precision(.fractionLength(2)).locale(locale)))
+                Text(currentTotal.priceString(locale: locale))
                     .font(.system(size: 36, weight: .bold))
                     .monospacedDigit()
                 if let c = current {
@@ -497,12 +500,29 @@ struct ContentView: View {
     }
 
     /// Re-derive everything from cached data (drops past slots, finds
-    /// cheapest, reschedules notifications, rewrites widget snapshot).
-    /// No network.
+    /// cheapest, reschedules notifications, rewrites widget snapshot,
+    /// pushes state to the watch). No network.
     private func recompute() async {
         vm.bumpNow()
         updateWidgetSnapshot()
         await rescheduleNotifications()
+        pushWatchState()
+    }
+
+    /// Push settings + subscription state to the paired watch.
+    private func pushWatchState() {
+        #if os(iOS)
+        WatchConnectivityProvider.shared.push(SyncedState(
+            planRaw: planRaw,
+            intervalRaw: intervalRaw,
+            marginal: marginal,
+            slotHours: [slot1Hours, slot2Hours, slot3Hours, slot4Hours],
+            slotDeadlines: [slot1Deadline, slot2Deadline, slot3Deadline, slot4Deadline],
+            selectedSlot: selectedLowest ?? -1,
+            languageRaw: languageRaw,
+            isSubscribed: store.isSubscribed
+        ))
+        #endif
     }
 
     /// Fetch if last successful fetch ≥ 3 h ago, then recompute.

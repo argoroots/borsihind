@@ -25,7 +25,7 @@ struct BreakdownRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 4)
-                Text(value.formatted(.number.precision(.fractionLength(fractionDigits)).locale(locale)))
+                Text(value.priceString(locale: locale, fractionDigits: fractionDigits))
                     .monospacedDigit()
                     .lineLimit(1)
                     .fixedSize()

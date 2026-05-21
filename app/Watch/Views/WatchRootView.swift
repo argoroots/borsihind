@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Watch screen: three swipeable pages — current price, cheapest hours,
-/// and the price graph. Settings come from the phone via
+/// Watch screen: two swipeable pages — current price with the graph
+/// beneath it, and cheapest hours. Settings come from the phone via
 /// `WatchSettingsStore`; prices are fetched on the watch via
 /// `WatchPricesModel`.
 struct WatchRootView: View {
@@ -10,9 +10,21 @@ struct WatchRootView: View {
     @State private var ticker: Task<Void, Never>?
     /// Last-viewed page, restored across launches.
     @AppStorage("watch.page") private var page = 0
+    /// Digital Crown position on the price page — selects a graph bar.
+    @State private var crownValue: Double = 0
+
+    @Environment(\.scenePhase) private var scenePhase
 
     private var state: SyncedState { settings.state }
     private var locale: Locale { state.locale }
+
+    /// Upcoming price slots; the crown scrubs an index into this.
+    private var seriesPoints: [WatchPricePoint] { prices.series(for: state) }
+    /// Crown-selected bar index, clamped to the available slots.
+    private var selectedIndex: Int {
+        guard !seriesPoints.isEmpty else { return 0 }
+        return min(max(Int(crownValue.rounded()), 0), seriesPoints.count - 1)
+    }
 
     var body: some View {
         Group {
@@ -26,18 +38,56 @@ struct WatchRootView: View {
         }
         // Glance → fetch only if stale; settings change / pull → force.
         .task { await prices.refreshIfStale(for: state) }
-        .onChange(of: stateKey) { _, _ in Task { await prices.refresh(for: state) } }
+        .onChange(of: stateKey) { _, _ in
+            crownValue = 0
+            Task { await prices.refresh(for: state) }
+        }
+        // Reactivation → snap selection back to the current slot.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            crownValue = 0
+            Task { await prices.refreshIfStale(for: state) }
+        }
         .onAppear(perform: startTicker)
         .onDisappear { ticker?.cancel() }
     }
 
     private var pages: some View {
         TabView(selection: $page) {
-            pageView(title: locale.t("Current price")) { currentPrice }.tag(0)
-            pageView(title: locale.t("Cheapest hours")) { windowsList }.tag(1)
-            pageView(title: locale.t("Graph")) { graph }.tag(2)
+            priceGraphPage.tag(0)
+            pageView { windowsList }.tag(1)
         }
         .tabViewStyle(.page)
+    }
+
+    /// Page 1: price near the top, graph anchored below. Rotate the
+    /// Digital Crown to move the selected bar — the header shows that
+    /// slot's price and time range, and the bar is highlighted amber
+    /// (same as tapping a bar on iPhone/Mac). Not wrapped in `pageView`:
+    /// the crown drives bar selection here instead of scrolling.
+    private var priceGraphPage: some View {
+        VStack(spacing: 8) {
+            priceHeader
+            Spacer(minLength: 0)
+            graph
+                // Graph height as a fraction of the watch screen so it
+                // scales proportionally across sizes, with extra breathing
+                // room above it.
+                .containerRelativeFrame(.vertical) { height, _ in height * 0.49 }
+                .padding(.top, 20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, 4)
+        .padding(.bottom, Self.pageDotsInset + 16)
+        .focusable()
+        .digitalCrownRotation(
+            $crownValue,
+            from: 0,
+            through: Double(max(seriesPoints.count - 1, 0)),
+            by: 1,
+            sensitivity: .medium,
+            isContinuous: false
+        )
     }
 
     /// Shown only when a fetch failed and there's no cached data to fall
@@ -59,44 +109,50 @@ struct WatchRootView: View {
         .refreshable { await prices.refresh(for: state) }
     }
 
-    /// One titled, scrollable, pull-to-refresh page wrapper.
-    private func pageView<Content: View>(title: String,
-                                         @ViewBuilder content: () -> Content) -> some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+    /// Bottom space reserved for the TabView page dots so content (e.g.
+    /// the graph) never draws underneath them.
+    private static let pageDotsInset: CGFloat = 18
+
+    /// Scrollable, pull-to-refresh page wrapper. The content fills the
+    /// viewport above the page dots (via `minHeight`) so a page can
+    /// distribute rows vertically without overlapping the indicator.
+    private func pageView<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        GeometryReader { geo in
+            ScrollView {
                 content()
+                    .frame(maxWidth: .infinity,
+                           minHeight: geo.size.height - Self.pageDotsInset)
+                    .padding(.horizontal, 4)
+                    .padding(.bottom, Self.pageDotsInset)
             }
-            .padding(.horizontal, 4)
+            .refreshable { await prices.refresh(for: state) }
         }
-        .refreshable { await prices.refresh(for: state) }
     }
 
     // MARK: - Pages
 
-    private var currentPrice: some View {
-        VStack(spacing: 2) {
-            if let total = prices.currentTotal(for: state) {
-                Text(total.priceString(locale: locale))
+    /// Price + time range for the crown-selected slot (index 0 = now).
+    @ViewBuilder
+    private var priceHeader: some View {
+        if seriesPoints.indices.contains(selectedIndex) {
+            let point = seriesPoints[selectedIndex]
+            let end = point.date.addingTimeInterval(TimeInterval(state.effectiveInterval.minutes * 60))
+            VStack(spacing: 2) {
+                Text(point.total.priceString(locale: locale))
                     .font(.system(size: 32, weight: .bold))
                     .monospacedDigit()
                 Text(locale.t("c/kWh"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                if let range = prices.currentRange(for: state) {
-                    Text("\(range.start, format: Date.VerbatimFormatStyle.hourMinute24) – \(range.end, format: Date.VerbatimFormatStyle.hourMinute24)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                ProgressView()
+                Text("\(point.date, format: Date.VerbatimFormatStyle.hourMinute24) – \(end, format: Date.VerbatimFormatStyle.hourMinute24)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 48)
+        } else {
+            ProgressView()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 12)
     }
 
     @ViewBuilder
@@ -104,37 +160,52 @@ struct WatchRootView: View {
         let windows = prices.windows(for: state)
         if windows.isEmpty {
             // All slots disabled (subscriber turned every slot off).
-            Text("—").foregroundStyle(.secondary).padding(.top, 12)
+            Text("—").foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            VStack(spacing: 6) {
-                ForEach(windows) { window in
-                    HStack {
-                        Text(window.label)
-                            .font(.callout.weight(.bold))
-                            .foregroundStyle(Color.green)
-                            .frame(width: 28, alignment: .leading)
-                        Text("\(window.start, format: Date.VerbatimFormatStyle.hourMinute24) – \(window.end, format: Date.VerbatimFormatStyle.hourMinute24)")
-                            .font(.caption)
-                        Spacer()
-                        Text(window.averagePrice.priceString(locale: locale))
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
+            // Spacers between rows distribute them evenly down the page.
+            VStack(spacing: 0) {
+                ForEach(Array(windows.enumerated()), id: \.element.id) { index, window in
+                    windowRow(window)
+                    if index < windows.count - 1 { Spacer(minLength: 4) }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// One cheapest-window row. The selected window (synced from the
+    /// phone) gets a green highlight to show which timespan is active.
+    private func windowRow(_ window: LowestWindow) -> some View {
+        let isSelected = window.slotIndex == state.selectedSlot
+        return HStack {
+            Text(window.label)
+                .font(.callout.weight(.bold))
+                .foregroundStyle(Color.green)
+                .frame(width: 28, alignment: .leading)
+            Text("\(window.start, format: Date.VerbatimFormatStyle.hourMinute24) – \(window.end, format: Date.VerbatimFormatStyle.hourMinute24)")
+                .font(.caption)
+            Spacer()
+            Text(window.averagePrice.priceString(locale: locale))
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(isSelected ? Color.green.opacity(0.18) : .clear,
+                    in: RoundedRectangle(cornerRadius: 6))
     }
 
     @ViewBuilder
     private var graph: some View {
-        let points = prices.series(for: state)
-        if points.isEmpty {
-            ProgressView().frame(maxWidth: .infinity).padding(.top, 12)
+        if seriesPoints.isEmpty {
+            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            WatchPriceChart(points: points,
-                            highlight: prices.selectedWindowRange(for: state))
-                .frame(height: 140)
+            WatchPriceChart(points: seriesPoints,
+                            highlight: prices.selectedWindowRange(for: state),
+                            selected: selectedIndex)
+                .frame(maxWidth: .infinity)
         }
     }
 

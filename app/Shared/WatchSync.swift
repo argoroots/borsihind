@@ -47,15 +47,22 @@ struct SyncedState: Codable, Equatable, Sendable {
 
 /// Encode/decode `SyncedState` for a `WCSession` application context.
 enum WatchSync {
-    private static let key = "state"
+    nonisolated private static let key = "state"
 
     static func encode(_ state: SyncedState) -> [String: Any] {
         guard let data = try? JSONEncoder().encode(state) else { return [:] }
         return [key: data]
     }
 
-    static func decode(_ context: [String: Any]) -> SyncedState? {
-        guard let data = context[key] as? Data else { return nil }
-        return try? JSONDecoder().decode(SyncedState.self, from: data)
+    /// Pull the raw `Data` payload out of a context. `nonisolated` so the
+    /// `WCSessionDelegate` callback (off the main actor) can call it; the
+    /// `Sendable` `Data` is then handed to `decode(_:)` back on the main
+    /// actor, avoiding a non-Sendable `[String: Any]` capture.
+    nonisolated static func payload(in context: [String: Any]) -> Data? {
+        context[key] as? Data
+    }
+
+    static func decode(_ data: Data) -> SyncedState? {
+        try? JSONDecoder().decode(SyncedState.self, from: data)
     }
 }

@@ -56,19 +56,6 @@ final class WatchPricesModel {
     /// Re-filter past slots without re-fetching.
     func tick() { vm.bumpNow() }
 
-    /// Current slot's total price (component sum + margin).
-    func currentTotal(for state: SyncedState) -> Double? {
-        guard let bar = vm.prices.first else { return nil }
-        return bar.total(withMargin: state.effectiveMargin)
-    }
-
-    /// Current slot's time range.
-    func currentRange(for state: SyncedState) -> (start: Date, end: Date)? {
-        guard let bar = vm.prices.first else { return nil }
-        let end = bar.date.addingTimeInterval(TimeInterval(state.effectiveInterval.minutes * 60))
-        return (bar.date, end)
-    }
-
     /// Cheapest windows for the synced slot config.
     func windows(for state: SyncedState) -> [LowestWindow] {
         vm.lowestWindows(interval: state.effectiveInterval,

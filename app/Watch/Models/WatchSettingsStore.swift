@@ -30,8 +30,9 @@ final class WatchSettingsStore: NSObject, WCSessionDelegate {
     /// Latest application context — the phone's most recent settings.
     nonisolated func session(_ session: WCSession,
                              didReceiveApplicationContext applicationContext: [String: Any]) {
-        guard let new = WatchSync.decode(applicationContext) else { return }
+        guard let data = WatchSync.payload(in: applicationContext) else { return }
         Task { @MainActor in
+            guard let new = WatchSync.decode(data) else { return }
             self.state = new
             Self.cache(new)
         }

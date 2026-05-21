@@ -63,11 +63,9 @@ struct SettingsView: View {
                 languageSection
                 pricingSection
                 cheapestHoursSection
-                #if !os(tvOS)
                 if store.isSubscribed {
                     notificationsSection
                 }
-                #endif
                 subscriptionSection
                 disclaimerSection
             }
@@ -197,7 +195,6 @@ struct SettingsView: View {
         .disabled(hours.wrappedValue == 0)
     }
 
-    #if !os(tvOS)
     /// Subscriber-only. Free users get the feature surfaced via the
     /// bottom upsell section instead.
     private var notificationsSection: some View {
@@ -217,7 +214,6 @@ struct SettingsView: View {
             Text(locale.t("Notifications explanation"))
         }
     }
-    #endif
 
     /// Subscribers see a simple chevron row (taps into manage-plan).
     /// Free users see the feature list + a Subscribe row, both routing
@@ -308,5 +304,4 @@ struct SettingsView: View {
             return locale.t("%@ hours").replacingOccurrences(of: "%@", with: String(n))
         }
     }
-
 }

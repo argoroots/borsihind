@@ -116,19 +116,13 @@ struct PriceChart: View {
         }
     }
 
-    @ViewBuilder
     private func tapOverlay(proxy: ChartProxy) -> some View {
-        #if os(tvOS)
-        // tvOS uses focus, not coordinate taps — chart is read-only.
-        EmptyView()
-        #else
         GeometryReader { geo in
             Rectangle().fill(.clear).contentShape(Rectangle())
                 .onTapGesture { location in
                     handleTap(at: location, proxy: proxy, geo: geo)
                 }
         }
-        #endif
     }
 
     // MARK: - Bar rows

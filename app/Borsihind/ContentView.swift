@@ -59,8 +59,6 @@ struct ContentView: View {
 
     /// One spacing constant used app-wide. Tweak to scale all gaps together.
     private static let pad: CGFloat = 32
-    /// Minimum left-column width for the wide layout.
-    private static let leftColumnMinWidth: CGFloat = 210
 
     private var isPhone: Bool {
         #if os(iOS)
@@ -270,9 +268,7 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(locale.t("Settings"))
-        #if !os(tvOS)
         .keyboardShortcut(",", modifiers: .command)
-        #endif
     }
 
     // MARK: - Layouts
@@ -363,7 +359,7 @@ struct ContentView: View {
     private func wideLayout(in size: CGSize) -> some View {
         let pad = Self.pad
         let chartGap = pad * 2
-        let leftWidth = max(Self.leftColumnMinWidth, min(300, size.width / 5))
+        let leftWidth = max(210, min(300, size.width / 5))
         return HStack(alignment: .top, spacing: chartGap) {
             leftColumn
                 .frame(width: leftWidth)

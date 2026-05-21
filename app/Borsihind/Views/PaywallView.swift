@@ -143,9 +143,6 @@ struct PaywallView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 32)
         }
-        // tvOS supports `SubscriptionStoreView` itself but not the
-        // styling hooks; iOS / iPadOS / macOS get the picker chrome.
-        #if !os(tvOS)
         .subscriptionStoreControlStyle(.compactPicker)
         .subscriptionStoreButtonLabel(.action)
         .storeButton(.visible, for: .restorePurchases)
@@ -161,7 +158,6 @@ struct PaywallView: View {
             url: URL(string: "https://borsihind.ee/privacy.html")!,
             for: .privacyPolicy
         )
-        #endif
         // Auto-dismiss only on a real completion (inner `.success`).
         // Outer `Result.success` also covers cancelled / pending.
         .onInAppPurchaseCompletion { _, result in

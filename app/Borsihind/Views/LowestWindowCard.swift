@@ -42,9 +42,7 @@ struct LowestWindowCard: View {
             )
         }
         .buttonStyle(.plain)
-        #if !os(tvOS)
         .onHover { isHovering = $0 }
-        #endif
         .alert(locale.t("Deadline warning"), isPresented: $showDeadlineExplanation) {
             Button(locale.t("OK"), role: .cancel) { }
         } message: {

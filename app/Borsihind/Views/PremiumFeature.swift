@@ -25,7 +25,9 @@ struct PremiumFeatureRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: systemImage)
-                .foregroundStyle(.tint)
+                // `.primary` → white on the dark subscription surfaces
+                // (dark mode), still visible (black) in light mode.
+                .foregroundStyle(.primary)
                 .font(.headline)
                 .frame(width: 24, alignment: .center)
             Text(text)

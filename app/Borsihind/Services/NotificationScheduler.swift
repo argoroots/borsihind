@@ -1,7 +1,5 @@
 import Foundation
-#if !os(tvOS)
 import UserNotifications
-#endif
 
 /// Local notifications for cheapest-hours slots. Each slot becomes one
 /// `UNCalendarNotificationTrigger` fired `leadMinutes` before its start.
@@ -9,12 +7,9 @@ import UserNotifications
 /// replaces, never stacks.
 ///
 /// Fires even when the app is closed — the OS delivers once a trigger
-/// is registered. tvOS has no `UserNotifications` framework, so the
-/// entry points are no-op stubs there.
+/// is registered.
 @MainActor
 enum NotificationScheduler {
-
-    #if !os(tvOS)
 
     private static let slotIdentifiers = (0..<4).map { "slot.\($0)" }
 
@@ -67,14 +62,6 @@ enum NotificationScheduler {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: slotIdentifiers)
     }
-
-    #else
-
-    static func requestAuthorizationIfNeeded() async -> Bool { false }
-    static func reschedule(slots: [LowestWindow], leadMinutes: Int, locale: Locale) async {}
-    static func removeAll() async {}
-
-    #endif
 }
 
 private extension String {

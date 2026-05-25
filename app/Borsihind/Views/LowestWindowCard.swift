@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// One cheapest-hours card: hour badge on the left, time range + average +
-/// savings on the right. Tapping toggles selection (chart highlight).
+/// savings on the right. Tapping invokes `onTap` (caller decides whether to
+/// select/toggle the chart highlight or open the paywall).
 struct LowestWindowCard: View {
     let window: LowestWindow
     let isSelected: Bool
@@ -11,6 +12,9 @@ struct LowestWindowCard: View {
     let isReady: Bool
     /// Average price of the same N hours starting now. Baseline for "% cheaper".
     let nowAverage: Double?
+    /// iPhone carousel: every card uses the selected tint (no lighter
+    /// non-selected state). Defaults off (iPad/Mac column distinguishes).
+    var uniformBackground: Bool = false
     let onTap: () -> Void
 
     @Environment(\.locale) private var locale
@@ -19,11 +23,16 @@ struct LowestWindowCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: 18) {
                 Text(window.label)
+                    // Smaller badge on macOS; larger on iOS/iPadOS.
+                    #if os(macOS)
                     .font(.system(size: 22, weight: .bold))
+                    #else
+                    .font(.system(size: 30, weight: .bold))
+                    #endif
                     .foregroundStyle(Color.green.opacity(0.6))
-                    .frame(minWidth: 36)
+                    .fixedSize()
 
                 if !isReady {
                     // Reserve height while subscription state resolves.
@@ -35,7 +44,8 @@ struct LowestWindowCard: View {
                     unlockedContent
                 }
             }
-            .padding(8)
+            // Larger green section with more breathing room.
+            .padding(18)
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .background(
                 RoundedRectangle(cornerRadius: 8).fill(backgroundFill)
@@ -66,33 +76,46 @@ struct LowestWindowCard: View {
     }
 
     private var unlockedContent: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
-                    .font(.headline.bold())
-                Text("–")
-                    .font(.headline)
-                Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
-                    .font(.headline.bold())
-                if window.missedDeadline != nil {
-                    // Inner Button intercepts the tap so the outer card
-                    // selection doesn't toggle.
-                    Button { showDeadlineExplanation = true } label: {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
+        // Price is a sibling of the two-line time/percent block so it sits
+        // vertically centred against it. The block fills the remaining width
+        // (8pt gap) so the price stays pinned to the right.
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(window.start, format: Date.VerbatimFormatStyle.hourMinute24)
+                        .font(.headline.bold())
+                    Text("–")
+                        .font(.headline)
+                    Text(window.end, format: Date.VerbatimFormatStyle.hourMinute24)
+                        .font(.headline.bold())
+                    if window.missedDeadline != nil {
+                        // Inner Button intercepts the tap so the outer card
+                        // selection doesn't toggle.
+                        Button { showDeadlineExplanation = true } label: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(locale.t("Deadline warning"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(locale.t("Deadline warning"))
                 }
-                Spacer()
-                Text(window.averagePrice.priceString(locale: locale))
-                    .font(.headline.weight(.regular))
-                    .foregroundStyle(.primary)
+                Text(percentString)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            Text(percentString)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(window.averagePrice.priceString(locale: locale))
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+                // Hug the price (dynamic width, never truncate) and keep it
+                // pinned to the right; the time block yields space first.
+                .fixedSize()
+                .layoutPriority(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -100,9 +123,12 @@ struct LowestWindowCard: View {
     // MARK: - Derived strings + styling
 
     private var backgroundFill: Color {
-        if isSelected { return Color.green.opacity(0.15) }
-        if isHovering { return Color.green.opacity(0.06) }
-        return Color.clear
+        // Selected card (or every card when `uniformBackground`) gets the
+        // strong tint; others are lighter so the selection stands out in the
+        // iPad/Mac column.
+        if uniformBackground || isSelected { return Color.green.opacity(0.18) }
+        if isHovering { return Color.green.opacity(0.08) }
+        return Color.green.opacity(0.05)
     }
 
     /// Window savings vs. running the same N hours starting now, rounded

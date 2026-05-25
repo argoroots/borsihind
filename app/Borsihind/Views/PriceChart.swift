@@ -4,8 +4,9 @@ import Charts
 /// Stacked bar chart of upcoming prices, one bar per slot.
 /// Six layered components stack bottom→top per bar; three styles: normal
 /// blue, green for the selected cheapest-window highlight, amber for the
-/// bar pinned via tap (wins over green). Y-axis snaps to multiples of 5;
-/// X-axis labels render between hour ticks at HH:30.
+/// bar pinned via tap (wins over green). A negative electricity price offsets
+/// the whole stack below zero. Y-axis bounds round to whole cents with an
+/// automatic step; X-axis labels are centred between hour ticks.
 struct PriceChart: View {
     let prices: [PriceEntry]
     let marginal: Double
@@ -79,15 +80,17 @@ struct PriceChart: View {
                                 centered: true,
                                 collisionResolution: .disabled
                             )
-                            .font(.body)
+                            .font(.subheadline)
                         }
                     }
                 }
-                .chartYScale(domain: 0...yAxisMax)
+                .chartYScale(domain: yAxisMin...yAxisMax)
                 .chartYAxis {
-                    AxisMarks(position: .leading, values: .stride(by: 5)) { _ in
+                    // Automatic step, but ask for a finer subdivision than the
+                    // default (which lands on 5 for our typical range).
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 10)) { _ in
                         AxisGridLine()
-                        AxisValueLabel().font(.body)
+                        AxisValueLabel().font(.subheadline)
                     }
                 }
                 .chartOverlay { proxy in
@@ -167,10 +170,16 @@ struct PriceChart: View {
     }
 
     /// Cumulative y-ranges per layer — drives the stacked vertical bar.
+    /// Negative components (e.g. a negative electricity price) offset the whole
+    /// stack downward: every positive layer keeps its full size, the bar's base
+    /// dips below zero, and its top equals the net total. So a negative price
+    /// shortens the bar without distorting any individual component.
     private func layerSegments(for entry: PriceEntry) -> [LayerSegment] {
+        let values = layerValues(entry: entry)
+        let baseline = values.reduce(0) { $0 + min(0, $1.1) }   // ≤ 0
         var segments: [LayerSegment] = []
-        var cumulative: Double = 0
-        for (layer, value) in layerValues(entry: entry) {
+        var cumulative = baseline
+        for (layer, value) in values where value > 0 {
             segments.append(LayerSegment(layer: layer, yStart: cumulative, yEnd: cumulative + value))
             cumulative += value
         }
@@ -229,10 +238,32 @@ struct PriceChart: View {
 
     private var slotSeconds: TimeInterval { TimeInterval(interval.minutes * 60) }
 
-    /// Top of the y-axis: largest stacked total rounded up to a multiple of 5.
+    /// Net total for a bar (all components + marginal); can be negative.
+    private func netTotal(for entry: PriceEntry) -> Double {
+        entry.componentSum + marginal
+    }
+
+    /// Rounding unit for the y-axis bounds — small so there's little wasted
+    /// headroom above the tallest bar / below the lowest.
+    private static let axisRounding: Double = 1
+
+    /// Top of the y-axis: largest net total rounded up to `axisRounding`.
     private var yAxisMax: Double {
-        let dataMax = prices.map { $0.componentSum + marginal }.max() ?? 1
-        return max(5, (dataMax / 5).rounded(.up) * 5)
+        let dataMax = prices.map { netTotal(for: $0) }.max() ?? 1
+        let r = Self.axisRounding
+        return max(r, (dataMax / r).rounded(.up) * r)
+    }
+
+    /// Bottom of the y-axis: 0 normally, or the most-negative bar base (the
+    /// summed negative components) rounded down to `axisRounding` — this is the
+    /// lowest the offset stack dips below zero.
+    private var yAxisMin: Double {
+        let dataMin = prices.map { entry in
+            layerValues(entry: entry).reduce(0) { $0 + min(0, $1.1) }
+        }.min() ?? 0
+        guard dataMin < 0 else { return 0 }
+        let r = Self.axisRounding
+        return (dataMin / r).rounded(.down) * r
     }
 
     /// Hour boundaries (HH:00) inside the data range, plus synthetic

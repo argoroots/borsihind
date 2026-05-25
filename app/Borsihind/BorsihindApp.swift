@@ -69,7 +69,7 @@ struct BorsihindApp: App {
         ContentView()
             .environment(\.locale, locale)
             .environment(store)
-            .frame(minWidth: 530, minHeight: 700)
+            .frame(minWidth: 560, minHeight: 700)
             // App Store macOS screenshot capture mode — DO NOT DELETE.
             // Swap with the `minWidth/minHeight` line above when taking
             // App Store screenshots. Apple requires a 1280×800 pt outer

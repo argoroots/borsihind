@@ -4,8 +4,8 @@ import WidgetKit
 #endif
 
 /// Root screen. Picks one of three layouts:
-/// - iPhone → `phoneLayout` (price+breakdown on top, pager below)
-/// - iPad portrait / narrow Mac → `compactLayout` (50/50 top + full-width chart)
+/// - iPhone → `phoneLayout` (price, breakdown, chart, then a cheapest-hours pager)
+/// - iPad portrait / narrow Mac → `compactLayout` (top row + full-width chart)
 /// - iPad landscape / wide Mac → `wideLayout` (left column + chart)
 ///
 /// Owns `PricesViewModel`, persists user choices via `@AppStorage`, and
@@ -33,8 +33,6 @@ struct ContentView: View {
 
     /// Notification lead time. `-1` = Off, `0` = at start, else minutes before.
     @AppStorage("notify.leadMinutes") private var notifyLeadMinutes: Int = -1
-    /// iPhone pager page (0 = cheapest cards, 1 = chart).
-    @AppStorage("phonePage") private var phonePage: Int = 0
     /// True once the first-launch disclaimer alert has been acknowledged.
     @AppStorage("disclaimerShown") private var disclaimerShown: Bool = false
     /// Language — read here only to forward to the watch.
@@ -53,12 +51,19 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.locale) private var locale
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(StoreManager.self) private var store
 
     // MARK: - Constants
 
     /// One spacing constant used app-wide. Tweak to scale all gaps together.
     private static let pad: CGFloat = 32
+
+    /// Subtle gray panel behind the chart — slightly stronger in dark mode so
+    /// it stays visible on a dark background.
+    private var chartBackground: Color {
+        Color.gray.opacity(colorScheme == .dark ? 0.16 : 0.08)
+    }
 
     private var isPhone: Bool {
         #if os(iOS)
@@ -70,9 +75,12 @@ struct ContentView: View {
 
     // MARK: - Bindings + derived state
 
+    /// Grid plan currently selected, decoded from `@AppStorage`.
+    private var currentPlan: Plan { Plan(rawValue: planRaw) ?? .v1 }
+
     private var plan: Binding<Plan> {
         Binding(
-            get: { Plan(rawValue: planRaw) ?? .v1 },
+            get: { currentPlan },
             set: { planRaw = $0.rawValue }
         )
     }
@@ -147,15 +155,38 @@ struct ContentView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+      GeometryReader { proxy in
+        // Which safe-area edges to bleed into so the chart's gray panel reaches
+        // the window edges, without pushing text under the status bar:
+        //   • iPhone — chart sits in the middle, keep all safe areas (bottom
+        //     only, for the gear button).
+        //   • iPad/Mac portrait (compactLayout, chart at bottom) — bleed
+        //     bottom + sides but KEEP the top inset so the price text gets its
+        //     top margin.
+        //   • iPad/Mac landscape (wideLayout, full-height chart) — bleed all.
+        let ignoredEdges: Edge.Set = isPhone
+            ? .bottom
+            : (proxy.size.width < proxy.size.height ? [.bottom, .horizontal] : .all)
+        // In the iPad wide layout the top safe area is bled into, so add it
+        // back to the gear's top padding to clear the status bar on full-screen.
+        #if !os(macOS)
+        let gearTop: CGFloat = isPhone
+            ? 24
+            : 12 + (ignoredEdges == .all ? proxy.safeAreaInsets.top : 0)
+        #endif
+        ZStack(alignment: .topTrailing) {
             content
-                .safeAreaPadding(.bottom)
 
+            // macOS reaches Settings via the menu bar (⌘,); no on-screen gear.
+            #if !os(macOS)
             gearButton
-                .padding(.leading, 16)
-                .padding(.bottom, 24)
+                // Align the gear's icon with the content's right edge (content
+                // has `pad` horizontal margin, the button has 8pt padding).
+                .padding(.trailing, Self.pad - 8)
+                .padding(.top, gearTop)
+            #endif
         }
-        .ignoresSafeArea(.container, edges: .bottom)
+        .ignoresSafeArea(.container, edges: ignoredEdges)
         .sheet(isPresented: $showSettings) { settingsSheet }
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .task { await fetchIfStaleAndRecompute() }
@@ -206,6 +237,7 @@ struct ContentView: View {
                 showPaywall = true
             }
         }
+      }
     }
 
     private var settingsSheet: some View {
@@ -273,58 +305,98 @@ struct ContentView: View {
 
     // MARK: - Layouts
 
-    /// iPhone: 50/50 vertical — price + breakdown on top, swipeable pager
-    /// (cheapest cards / chart) below.
+    /// iPhone: price + breakdown on top, a compact chart in the middle, and
+    /// a swipeable one-card-per-page cheapest-hours pager at the bottom.
+    /// Swiping the pager left/right selects the active cheapest slot, which
+    /// highlights the matching window in the chart above.
     private func phoneLayout(in size: CGSize) -> some View {
         let pad = Self.pad
-        return VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: pad / 2) {
-                priceHeader
-                breakdown
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding(.horizontal, pad)
-            .padding(.top, pad)
+        return VStack(spacing: pad) {
+            // Price section.
+            priceHeader
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, pad)
 
-            // Header lives outside the TabView so `.page` style doesn't
-            // vertically center it off-screen.
-            VStack(spacing: 8) {
-                Text(phonePage == 0 ? locale.t("Cheapest hours") : "")
-                    .textCase(.uppercase)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            // Price breakdown table section.
+            breakdown
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, pad)
 
-                TabView(selection: $phonePage) {
-                    cardsColumn
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.top, 8)
-                        .padding(.bottom, 32)
-                        .tag(0)
+            // Chart absorbs the leftover height so there's no empty space
+            // above the price or below the cheapest pager. Background is
+            // applied after the padding so the gray panel bleeds edge-to-edge
+            // horizontally, with top/bottom breathing room inside the panel.
+            chart
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, pad)
+                .padding(.top, pad)
+                .padding(.bottom, pad / 2)
+                .background(chartBackground)
 
-                    chart
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.top, 12)
-                        .padding(.bottom, 32)
-                        .tag(1)
-                }
-                #if os(iOS)
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
-                #endif
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, pad)
-            .padding(.top, pad)
+            // Full-bleed so neighbouring cards can peek past the screen edges.
+            cheapestPager(in: size)
         }
+        .padding(.top, pad)
+        .padding(.bottom, pad)
     }
 
-    /// iPad portrait / narrow Mac: top row 50/50 (breakdown + cards),
-    /// full-width chart below.
+    /// Swipeable cheapest-hours carousel (iPhone). The centered card is the
+    /// active slot; the previous/next cards peek past the screen edges so it's
+    /// obvious there are more. Snapping a card into the centre selects it and
+    /// the chart highlight follows.
+    private func cheapestPager(in size: CGSize) -> some View {
+        // `inset` is the resting side margin of the centred card; the visible
+        // neighbour peek is `inset - spacing`.
+        let inset: CGFloat = Self.pad
+        let spacing: CGFloat = 12
+        let cardWidth = max(0, size.width - 2 * inset)
+        return ScrollView(.horizontal) {
+            HStack(spacing: spacing) {
+                ForEach(lowestWindows) { window in
+                    lowestCard(window,
+                               isSelected: scrolledSlot.wrappedValue == window.slotIndex,
+                               uniformBackground: true,
+                               toggleSelection: false)
+                        .frame(width: cardWidth)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: scrolledSlot, anchor: .center)
+        .contentMargins(.horizontal, inset, for: .scrollContent)
+        .scrollIndicators(.hidden)
+        // Hug the card height — no extra vertical padding on the section.
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Carousel scroll position bound to the active cheapest slot. Falls back
+    /// to the first available window when nothing valid is stored; ignores the
+    /// transient `nil` SwiftUI emits mid-scroll.
+    private var scrolledSlot: Binding<Int?> {
+        Binding(
+            get: {
+                if let sel = Int(lowestRaw),
+                   lowestWindows.contains(where: { $0.slotIndex == sel }) {
+                    return sel
+                }
+                return lowestWindows.first?.slotIndex
+            },
+            set: { newValue in
+                if let v = newValue { lowestRaw = String(v) }
+            }
+        )
+    }
+
+    /// iPad portrait / narrow Mac: top row (breakdown + cards) at its natural
+    /// height, the chart fills all remaining space below.
     private func compactLayout(in size: CGSize) -> some View {
         let pad = Self.pad
-        let chartGap = pad * 2
-        let half = max(0, (size.height - 40 - chartGap - 2 * pad) / 2)
+        // Gap between the top row and the chart panel.
+        let chartGap = pad
+        // Exact 50/50 split for the two top columns (content width minus the
+        // outer horizontal padding and the inter-column gap, halved).
+        let columnWidth = max(0, (size.width - 2 * pad - pad) / 2)
 
         return VStack(spacing: chartGap) {
             HStack(alignment: .top, spacing: pad) {
@@ -332,42 +404,34 @@ struct ContentView: View {
                     priceHeader
                     breakdown
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(width: columnWidth, alignment: .topLeading)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(locale.t("Cheapest hours"))
-                        .textCase(.uppercase)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    cardsColumn
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
+                cheapestColumn
+                    .frame(width: columnWidth, alignment: .top)
             }
-            .frame(maxWidth: .infinity, maxHeight: half, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.horizontal, pad)
 
-            chart
-                .frame(maxWidth: .infinity, maxHeight: half)
+            chartPanel
         }
-        .padding(.horizontal, pad)
         .padding(.top, pad / 2)
-        .padding(.bottom, pad)
     }
 
     /// iPad landscape / wide Mac: narrow left column (sections stacked),
     /// rest of the window is chart.
     private func wideLayout(in size: CGSize) -> some View {
         let pad = Self.pad
-        let chartGap = pad * 2
-        let leftWidth = max(210, min(300, size.width / 5))
-        return HStack(alignment: .top, spacing: chartGap) {
+        // Wide enough for the cheapest-card time range + price not to wrap.
+        let leftWidth = max(320, min(400, size.width / 4))
+        // Gap to the chart equals the left column's left margin (`pad`).
+        return HStack(alignment: .top, spacing: pad) {
             leftColumn
                 .frame(width: leftWidth)
+                .padding(.leading, pad)
+                .padding(.vertical, pad)
 
-            chart
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            chartPanel
         }
-        .padding(pad)
     }
 
     /// Two stacked half-height sections: price+breakdown then cheapest cards.
@@ -384,16 +448,9 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: half, alignment: .center)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(locale.t("Cheapest hours"))
-                        .textCase(.uppercase)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    cardsColumn
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: half, alignment: .center)
+                cheapestColumn
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: half, alignment: .center)
             }
         }
     }
@@ -407,12 +464,17 @@ struct ContentView: View {
         return locale.t(isCurrent ? "Current price" : "Selected price")
     }
 
+    /// Small uppercase caption used above sections (price, cheapest hours).
+    private func sectionCaption(_ text: String) -> some View {
+        Text(text)
+            .textCase(.uppercase)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
     private var priceHeader: some View {
         VStack(spacing: 8) {
-            Text(priceHeaderTitle)
-                .textCase(.uppercase)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            sectionCaption(priceHeaderTitle)
 
             VStack(spacing: 4) {
                 Text(currentTotal.priceString(locale: locale))
@@ -452,28 +514,53 @@ struct ContentView: View {
     private var cardsColumn: some View {
         VStack(spacing: 8) {
             ForEach(lowestWindows) { window in
-                LowestWindowCard(
-                    window: window,
-                    isSelected: selectedLowest == window.slotIndex,
-                    // Slot 0 free; 1-3 premium. Don't flash locked
-                    // chrome while subscription state is still loading.
-                    isLocked: store.hasResolvedSubscriptionState
-                        && window.slotIndex > 0
-                        && !store.isSubscribed,
-                    isReady: store.hasResolvedSubscriptionState,
-                    nowAverage: vm.nowAverage(forHours: window.hours,
-                                              interval: effectiveInterval,
-                                              marginal: effectiveMargin),
-                    onTap: {
-                        if window.slotIndex > 0 && !store.isSubscribed {
-                            showPaywall = true
-                        } else {
-                            let key = String(window.slotIndex)
-                            lowestRaw = (lowestRaw == key) ? "" : key
-                        }
-                    }
-                )
+                lowestCard(window,
+                           isSelected: selectedLowest == window.slotIndex,
+                           toggleSelection: true)
             }
+        }
+    }
+
+    /// Shared cheapest-hours card. `isSelected` / `uniformBackground` and the
+    /// tap behaviour differ between the iPhone carousel and the iPad/Mac column.
+    private func lowestCard(_ window: LowestWindow,
+                            isSelected: Bool,
+                            uniformBackground: Bool = false,
+                            toggleSelection: Bool) -> some View {
+        LowestWindowCard(
+            window: window,
+            isSelected: isSelected,
+            // Slot 0 free; 1-3 premium. Don't flash locked chrome while the
+            // subscription state is still resolving.
+            isLocked: store.hasResolvedSubscriptionState
+                && window.slotIndex > 0
+                && !store.isSubscribed,
+            isReady: store.hasResolvedSubscriptionState,
+            nowAverage: vm.nowAverage(forHours: window.hours,
+                                      interval: effectiveInterval,
+                                      marginal: effectiveMargin),
+            uniformBackground: uniformBackground,
+            onTap: { selectSlot(window, toggle: toggleSelection) }
+        )
+    }
+
+    /// Premium slots open the paywall; others select (optionally toggling off
+    /// when tapped again).
+    private func selectSlot(_ window: LowestWindow, toggle: Bool) {
+        if window.slotIndex > 0 && !store.isSubscribed {
+            showPaywall = true
+            return
+        }
+        let key = String(window.slotIndex)
+        lowestRaw = (toggle && lowestRaw == key) ? "" : key
+    }
+
+    /// Cheapest-hours section (iPad/Mac): caption + the stacked cards.
+    private var cheapestColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionCaption(locale.t("Cheapest hours"))
+                .frame(maxWidth: .infinity, alignment: .center)
+            cardsColumn
         }
     }
 
@@ -485,6 +572,16 @@ struct ContentView: View {
             highlightRange: highlightRange,
             selectedDate: $selectedDate
         )
+    }
+
+    /// Chart inset inside a gray panel that fills its area (iPad/Mac). The
+    /// panel's bleed to the window edges is handled by the container's
+    /// `ignoresSafeArea`.
+    private var chartPanel: some View {
+        chart
+            .padding(Self.pad)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(chartBackground)
     }
 
     // MARK: - Refresh pipeline
@@ -523,16 +620,14 @@ struct ContentView: View {
 
     /// Fetch if last successful fetch ≥ 3 h ago, then recompute.
     private func fetchIfStaleAndRecompute() async {
-        await vm.loadIfStale(plan: Plan(rawValue: planRaw) ?? .v1,
-                             interval: effectiveInterval)
+        await vm.loadIfStale(plan: currentPlan, interval: effectiveInterval)
         await recompute()
     }
 
     /// Force-fetch + recompute. Pull-to-refresh, plan/interval change,
     /// BGAppRefreshTask wake.
     private func forceFetchAndRecompute() async {
-        await vm.load(plan: Plan(rawValue: planRaw) ?? .v1,
-                      interval: effectiveInterval)
+        await vm.load(plan: currentPlan, interval: effectiveInterval)
         await recompute()
     }
 

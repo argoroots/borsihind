@@ -46,6 +46,9 @@ struct ContentView: View {
     @State private var showDisclaimer = false
     /// `nil` = follow the current first bar; otherwise pinned to a tapped bar.
     @State private var selectedDate: Date?
+    /// Drives the iPhone cheapest-hours carousel scroll position. Synced from
+    /// `lowestRaw` when the windows list (re-)appears and written back on swipe.
+    @State private var pagerSlot: Int?
 
     // MARK: - Environment
 
@@ -211,6 +214,15 @@ struct ContentView: View {
         // the body's type-checker stays happy.
         .onChange(of: slotConfigSignature) { _, _ in Task { await recompute() } }
         .onChange(of: notifyLeadMinutes)   { _, _ in Task { await rescheduleNotifications() } }
+        // Re-apply the saved carousel selection whenever the windows list
+        // changes (e.g. data finished loading, plan/interval/subscription flip).
+        .onChange(of: lowestWindows.map(\.slotIndex), initial: true) { _, _ in
+            syncPagerSlotFromStorage()
+        }
+        // User-driven carousel swipe — persist the new selection.
+        .onChange(of: pagerSlot) { _, new in
+            if let v = new, String(v) != lowestRaw { lowestRaw = String(v) }
+        }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             selectedDate = nil
@@ -354,7 +366,7 @@ struct ContentView: View {
             HStack(spacing: spacing) {
                 ForEach(lowestWindows) { window in
                     lowestCard(window,
-                               isSelected: scrolledSlot.wrappedValue == window.slotIndex,
+                               isSelected: pagerSlot == window.slotIndex,
                                uniformBackground: true,
                                toggleSelection: false)
                         .frame(width: cardWidth)
@@ -363,29 +375,23 @@ struct ContentView: View {
             .scrollTargetLayout()
         }
         .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: scrolledSlot, anchor: .center)
+        .scrollPosition(id: $pagerSlot, anchor: .center)
         .contentMargins(.horizontal, inset, for: .scrollContent)
         .scrollIndicators(.hidden)
         // Hug the card height — no extra vertical padding on the section.
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Carousel scroll position bound to the active cheapest slot. Falls back
-    /// to the first available window when nothing valid is stored; ignores the
-    /// transient `nil` SwiftUI emits mid-scroll.
-    private var scrolledSlot: Binding<Int?> {
-        Binding(
-            get: {
-                if let sel = Int(lowestRaw),
-                   lowestWindows.contains(where: { $0.slotIndex == sel }) {
-                    return sel
-                }
-                return lowestWindows.first?.slotIndex
-            },
-            set: { newValue in
-                if let v = newValue { lowestRaw = String(v) }
-            }
-        )
+    /// Restore `pagerSlot` from `lowestRaw` (or the first available window).
+    /// Called when the windows list (re-)appears so the carousel scrolls to
+    /// the user's last-selected slot after async data load.
+    private func syncPagerSlotFromStorage() {
+        let ids = lowestWindows.map(\.slotIndex)
+        if let sel = Int(lowestRaw), ids.contains(sel) {
+            if pagerSlot != sel { pagerSlot = sel }
+        } else if let first = ids.first, pagerSlot != first {
+            pagerSlot = first
+        }
     }
 
     /// iPad portrait / narrow Mac: top row (breakdown + cards) at its natural

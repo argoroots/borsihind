@@ -220,8 +220,8 @@ private extension CurrentPriceWidgetView {
 
             Spacer(minLength: 4)
 
-            if let totals = entry.snapshot?.hourlyTotals, !totals.isEmpty {
-                MiniBarChart(values: totals,
+            if !futureHourlyTotals.isEmpty {
+                MiniBarChart(values: futureHourlyTotals,
                              highlightedRange: highlightedRange,
                              midnightIndices: midnightIndices)
                     .frame(height: 28)
@@ -245,8 +245,8 @@ private extension CurrentPriceWidgetView {
                 cheapestBlock
             }
 
-            if let totals = entry.snapshot?.hourlyTotals, !totals.isEmpty {
-                MiniBarChart(values: totals,
+            if !futureHourlyTotals.isEmpty {
+                MiniBarChart(values: futureHourlyTotals,
                              highlightedRange: highlightedRange,
                              midnightIndices: midnightIndices)
                     .frame(height: 32)
@@ -303,33 +303,50 @@ private extension CurrentPriceWidgetView {
         return locale.t("Cheapest %@h").replacingOccurrences(of: "%@", with: String(n))
     }
 
-    /// `hourlyTotals` indices covered by the selected cheapest window.
+    /// Number of hourly slots between the snapshot's `hourlyStart` and the
+    /// timeline entry's date. Used to drop past hours from the mini chart so
+    /// it advances at each timeline entry instead of showing stale bars.
+    var hourlyOffset: Int {
+        guard let snap = entry.snapshot else { return 0 }
+        let offset = Int(entry.date.timeIntervalSince(snap.hourlyStart) / 3600)
+        return max(0, min(offset, snap.hourlyTotals.count))
+    }
+
+    /// Hourly totals from `entry.date` forward — past hours dropped so the
+    /// mini chart self-updates every slot boundary as the timeline advances.
+    var futureHourlyTotals: [Double] {
+        guard let snap = entry.snapshot, !snap.hourlyTotals.isEmpty else { return [] }
+        return Array(snap.hourlyTotals[hourlyOffset...])
+    }
+
+    /// `futureHourlyTotals` indices covered by the selected cheapest window.
     /// Drives the green highlight on the hourly mini chart. The
-    /// cheapest window is computed at slot resolution (15-min or 1-h)
-    /// — for the hourly chart, highlight every hour that overlaps the
-    /// window's time range.
+    /// cheapest window is computed at slot resolution (15-min or 1-h) — for
+    /// the hourly chart, highlight every hour that overlaps the window.
     var highlightedRange: ClosedRange<Int>? {
         guard let snap = entry.snapshot,
               let cheapest = cheapestForEntry,
-              !snap.hourlyTotals.isEmpty
+              !futureHourlyTotals.isEmpty
         else { return nil }
-        let startIdx = Int(cheapest.start.timeIntervalSince(snap.hourlyStart) / 3600)
+        let offset = hourlyOffset
+        let startIdx = Int(cheapest.start.timeIntervalSince(snap.hourlyStart) / 3600) - offset
         // `end` is exclusive; -1s maps to the last touched hour's index.
         let endIdx = Int(cheapest.end.addingTimeInterval(-1)
-                         .timeIntervalSince(snap.hourlyStart) / 3600)
+                         .timeIntervalSince(snap.hourlyStart) / 3600) - offset
         let lo = max(startIdx, 0)
-        let hi = min(endIdx, snap.hourlyTotals.count - 1)
+        let hi = min(endIdx, futureHourlyTotals.count - 1)
         return lo <= hi ? lo...hi : nil
     }
 
-    /// `hourlyTotals` indices at 00:00 — drives the day-divider line in
+    /// `futureHourlyTotals` indices at 00:00 — drives the day-divider line in
     /// the mini chart. Index 0 is excluded (nothing to divide from).
     var midnightIndices: Set<Int> {
-        guard let snap = entry.snapshot, !snap.hourlyTotals.isEmpty else { return [] }
+        guard let snap = entry.snapshot, !futureHourlyTotals.isEmpty else { return [] }
+        let offset = hourlyOffset
         let cal = Calendar.current
         var out: Set<Int> = []
-        for i in 1..<snap.hourlyTotals.count {
-            let date = snap.hourlyStart.addingTimeInterval(TimeInterval(i) * 3600)
+        for i in 1..<futureHourlyTotals.count {
+            let date = snap.hourlyStart.addingTimeInterval(TimeInterval(offset + i) * 3600)
             if cal.component(.hour, from: date) == 0 {
                 out.insert(i)
             }

@@ -1,7 +1,6 @@
 #if os(iOS)
 import Foundation
 import BackgroundTasks
-import WidgetKit
 
 /// iOS background-refresh hook. iOS wakes the app on its own schedule
 /// to refetch prices + update the widget snapshot, so coverage doesn't
@@ -37,8 +36,9 @@ enum BackgroundRefresh {
 
     private static func runHandler(task: BGAppRefreshTask) async {
         task.expirationHandler = { task.setTaskCompleted(success: false) }
+        // `handler` is `forceFetchAndRecompute()` which already publishes the
+        // snapshot via `SharedStorage.publish(...)` and reloads timelines.
         await handler?()
-        WidgetCenter.shared.reloadAllTimelines()
         scheduleNext()
         task.setTaskCompleted(success: true)
     }

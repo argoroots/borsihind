@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import WidgetKit
 
 /// One chartable price point for the watch graph (date + total).
 struct WatchPricePoint: Identifiable {
@@ -44,13 +43,13 @@ final class WatchPricesModel {
     /// until the `group.ee.borsihind` entitlement is granted to the
     /// watch app + complication extension.
     func publishSnapshot(for state: SyncedState) {
-        SharedStorage.isSubscribed = state.isSubscribed
-        if let snap = vm.snapshot(slots: state.effectiveSlots,
+        SharedStorage.publish(
+            snapshot: vm.snapshot(plan: state.plan,
+                                  slots: state.effectiveSlots,
                                   selectedSlotID: state.selectedSlot,
-                                  marginal: state.effectiveMargin) {
-            SharedStorage.writeSnapshot(snap)
-        }
-        WidgetCenter.shared.reloadAllTimelines()
+                                  marginal: state.effectiveMargin),
+            isSubscribed: state.isSubscribed
+        )
     }
 
     /// Re-filter past slots without re-fetching.

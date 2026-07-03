@@ -50,28 +50,37 @@ struct PriceProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceTimelineEntry>) -> Void) {
-        let snap = SharedStorage.readSnapshot()
-        let isSubscribed = SharedStorage.isSubscribed
-        let now = Date()
+        Task {
+            let now = Date()
+            var snap = SharedStorage.readSnapshot()
+            // When the snapshot is missing, stale, or its data is running out,
+            // the widget refreshes itself — this is what keeps the widget alive
+            // on macOS where the host app has no `BGAppRefreshTask` analogue.
+            if SharedStorage.Snapshot.shouldRefresh(snap, at: now),
+               let refreshed = await SharedStorage.Snapshot.refresh(from: snap) {
+                snap = refreshed
+                SharedStorage.writeSnapshot(refreshed)
+            }
 
-        // Without data, fall back to a single entry + retry in 30 min.
-        // The main app or BGAppRefreshTask will populate the snapshot
-        // eventually.
-        guard let snap, !snap.slotTotals.isEmpty else {
-            let entry = PriceTimelineEntry(date: now, snapshot: snap, isSubscribed: isSubscribed)
-            completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
-            return
-        }
+            let isSubscribed = SharedStorage.isSubscribed
 
-        // One entry per upcoming slot boundary so the widget self-advances
-        // without depending on the app or a background task to wake. Each
-        // entry shares the snapshot; the view picks the slot matching
-        // `entry.date`. Boundary math is shared with the watch complication.
-        let timeline = snap.timelineDates(after: now)
-        let entries = timeline.dates.map {
-            PriceTimelineEntry(date: $0, snapshot: snap, isSubscribed: isSubscribed)
+            // Without data, fall back to a single entry + retry in 30 min.
+            guard let snap, !snap.slotTotals.isEmpty else {
+                let entry = PriceTimelineEntry(date: now, snapshot: snap, isSubscribed: isSubscribed)
+                completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
+                return
+            }
+
+            // One entry per upcoming slot boundary so the widget self-advances
+            // without depending on the app or a background task to wake. Each
+            // entry shares the snapshot; the view picks the slot matching
+            // `entry.date`. Boundary math is shared with the watch complication.
+            let timeline = snap.timelineDates(after: now)
+            let entries = timeline.dates.map {
+                PriceTimelineEntry(date: $0, snapshot: snap, isSubscribed: isSubscribed)
+            }
+            completion(Timeline(entries: entries, policy: .after(timeline.refreshAfter)))
         }
-        completion(Timeline(entries: entries, policy: .after(timeline.refreshAfter)))
     }
 
     private func currentEntry() -> PriceTimelineEntry {

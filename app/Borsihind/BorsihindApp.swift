@@ -2,6 +2,8 @@ import SwiftUI
 import StoreKit
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 /// Posted by the macOS Settings… menu item; observed by `ContentView` to
@@ -48,14 +50,20 @@ struct BorsihindApp: App {
 
     #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-
-    /// Register the BGAppRefreshTask identifier as early as possible —
-    /// Apple requires `BGTaskScheduler.register(...)` before launch
-    /// finishes. The actual handler is installed by `ContentView`.
-    init() {
-        BackgroundRefresh.register()
-    }
     #endif
+
+    init() {
+        #if os(iOS)
+        // Register the BGAppRefreshTask identifier as early as possible —
+        // Apple requires `BGTaskScheduler.register(...)` before launch
+        // finishes. The actual handler is installed by `ContentView`.
+        BackgroundRefresh.register()
+        #elseif os(macOS)
+        // Disable system window tabbing so ⌘N / View > Show Tab Bar / merge-
+        // windows don't create a tab strip in the single-window app.
+        NSWindow.allowsAutomaticWindowTabbing = false
+        #endif
+    }
 
     @AppStorage("language", store: .shared) private var languageRaw: String = Language.et.rawValue
 

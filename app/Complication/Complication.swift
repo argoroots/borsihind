@@ -44,16 +44,27 @@ struct PriceProvider: TimelineProvider {
         completion(PriceTimelineEntry(date: Date(), snapshot: SharedStorage.readSnapshot()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceTimelineEntry>) -> Void) {
-        let now = Date()
-        guard let snap = SharedStorage.readSnapshot(), !snap.slotTotals.isEmpty else {
-            let entry = PriceTimelineEntry(date: now, snapshot: nil)
-            completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
-            return
+        Task {
+            let now = Date()
+            var snap = SharedStorage.readSnapshot()
+            // Refresh the snapshot ourselves when it's stale or running out of
+            // data — covers gaps where the Watch app hasn't run recently.
+            if SharedStorage.Snapshot.shouldRefresh(snap, at: now),
+               let refreshed = await SharedStorage.Snapshot.refresh(from: snap) {
+                snap = refreshed
+                SharedStorage.writeSnapshot(refreshed)
+            }
+
+            guard let snap, !snap.slotTotals.isEmpty else {
+                let entry = PriceTimelineEntry(date: now, snapshot: nil)
+                completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
+                return
+            }
+            // Self-advancing entries — boundary math shared with the iOS widget.
+            let timeline = snap.timelineDates(after: now)
+            let entries = timeline.dates.map { PriceTimelineEntry(date: $0, snapshot: snap) }
+            completion(Timeline(entries: entries, policy: .after(timeline.refreshAfter)))
         }
-        // Self-advancing entries — boundary math shared with the iOS widget.
-        let timeline = snap.timelineDates(after: now)
-        let entries = timeline.dates.map { PriceTimelineEntry(date: $0, snapshot: snap) }
-        completion(Timeline(entries: entries, policy: .after(timeline.refreshAfter)))
     }
 }
 

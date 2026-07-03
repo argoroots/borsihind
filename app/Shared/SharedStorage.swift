@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// App Group bridge between the app and its extensions (widget +
 /// watch complication). Every participating target needs the
@@ -34,6 +37,13 @@ enum SharedStorage {
 
         /// Snapshot write time. Used for staleness checks.
         let writtenAt: Date
+
+        /// Settings the widget needs to refresh itself when the host app is
+        /// closed (mainly on macOS, where there's no `BGAppRefreshTask`).
+        /// Optional so older snapshots still decode after migration.
+        let planRaw: String?
+        let intervalRaw: String?
+        let marginal: Double?
     }
 
     static func writeSnapshot(_ snapshot: Snapshot) {
@@ -54,6 +64,18 @@ enum SharedStorage {
     static var isSubscribed: Bool {
         get { defaults?.bool(forKey: isSubscribedKey) ?? false }
         set { defaults?.set(newValue, forKey: isSubscribedKey) }
+    }
+
+    /// Publish a fresh snapshot + subscription state and nudge WidgetKit to
+    /// reload all widget/complication timelines. The single recipe shared by
+    /// the iPhone/Mac app, the watch app, and the background-refresh handler.
+    @MainActor
+    static func publish(snapshot: Snapshot?, isSubscribed: Bool) {
+        Self.isSubscribed = isSubscribed
+        if let snapshot { writeSnapshot(snapshot) }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }
 
@@ -92,6 +114,71 @@ extension SharedStorage.Snapshot {
             fromIndex: max(slotIndex(at: date) ?? 0, 0),
             deadlineEnd: PriceCompute.nextOccurrence(ofHour: selectedSlotDeadline, after: date)
         )
+    }
+
+    /// Convenience init that folds margin into per-slot totals and stamps
+    /// `writtenAt` to `Date()`. Shared by `PricesViewModel.snapshot(…)` and
+    /// the widget/complication self-refresh path.
+    init?(prices: [PriceEntry], hourly: [PriceEntry],
+          plan: Plan, interval: Interval, marginal: Double,
+          cheapestHours: Int, selectedSlotDeadline: Int) {
+        guard let first = prices.first else { return nil }
+        self.init(
+            slotTotals: prices.map { $0.total(withMargin: marginal) },
+            slotStart: first.date,
+            slotMinutes: interval.minutes,
+            cheapestHours: cheapestHours,
+            selectedSlotDeadline: selectedSlotDeadline,
+            hourlyTotals: hourly.map { $0.total(withMargin: marginal) },
+            hourlyStart: hourly.first?.date ?? first.date,
+            writtenAt: Date(),
+            planRaw: plan.rawValue,
+            intervalRaw: interval.rawValue,
+            marginal: marginal
+        )
+    }
+
+    /// `true` when the snapshot is missing, > 3 h old, or has < 1 h of
+    /// future slot data left — i.e. the extensions should refetch.
+    static func shouldRefresh(_ snap: SharedStorage.Snapshot?, at now: Date) -> Bool {
+        guard let snap, !snap.slotTotals.isEmpty else { return true }
+        if now.timeIntervalSince(snap.writtenAt) > 3 * 3600 { return true }
+        let slotDuration = TimeInterval(snap.slotMinutes * 60)
+        let lastSlotEnd = snap.slotStart.addingTimeInterval(TimeInterval(snap.slotTotals.count) * slotDuration)
+        return lastSlotEnd < now.addingTimeInterval(3600)
+    }
+
+    /// Fetch fresh prices and rebuild the snapshot from the settings carried
+    /// on `old`, preserving the cheapest-window selection. Returns nil when
+    /// the settings are missing (older snapshot) or the fetch fails.
+    static func refresh(from old: SharedStorage.Snapshot?) async -> SharedStorage.Snapshot? {
+        guard let old,
+              let planRaw = old.planRaw, let plan = Plan(rawValue: planRaw),
+              let intervalRaw = old.intervalRaw, let interval = Interval(rawValue: intervalRaw),
+              let marginal = old.marginal
+        else { return nil }
+        let service = PriceService()
+        do {
+            async let primary = service.fetchPrices(plan: plan, interval: interval)
+            let prices: [PriceEntry]
+            let hourly: [PriceEntry]
+            if interval == .oneHour {
+                prices = try await primary
+                hourly = prices
+            } else {
+                async let hourlyFetch = service.fetchPrices(plan: plan, interval: .oneHour)
+                prices = try await primary
+                hourly = (try? await hourlyFetch) ?? []
+            }
+            return SharedStorage.Snapshot(
+                prices: prices, hourly: hourly,
+                plan: plan, interval: interval, marginal: marginal,
+                cheapestHours: old.cheapestHours,
+                selectedSlotDeadline: old.selectedSlotDeadline
+            )
+        } catch {
+            return nil
+        }
     }
 
     /// Entry dates for a self-advancing timeline — `now` plus every

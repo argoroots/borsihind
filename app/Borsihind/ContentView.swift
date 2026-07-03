@@ -1,7 +1,4 @@
 import SwiftUI
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
 /// Root screen. Picks one of three layouts:
 /// - iPhone → `phoneLayout` (price, breakdown, chart, then a cheapest-hours pager)
@@ -652,15 +649,13 @@ struct ContentView: View {
 
     /// Write the App Group snapshot and reload widget timelines.
     private func updateWidgetSnapshot() {
-        SharedStorage.isSubscribed = store.isSubscribed
-        guard let snap = vm.snapshot(slots: effectiveSlots,
-                                     selectedSlotID: selectedLowest,
-                                     marginal: effectiveMargin)
-        else { return }
-        SharedStorage.writeSnapshot(snap)
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
+        SharedStorage.publish(
+            snapshot: vm.snapshot(plan: currentPlan,
+                                  slots: effectiveSlots,
+                                  selectedSlotID: selectedLowest,
+                                  marginal: effectiveMargin),
+            isSubscribed: store.isSubscribed
+        )
     }
 }
 

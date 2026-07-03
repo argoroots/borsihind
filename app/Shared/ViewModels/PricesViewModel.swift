@@ -208,22 +208,16 @@ final class PricesViewModel {
     /// here so all snapshot fields derive from the same `prices` /
     /// `hourlyPrices` / margin source. ContentView just calls this and
     /// writes the result.
-    func snapshot(slots: [CheapestSlot], selectedSlotID: Int?,
+    func snapshot(plan: Plan, slots: [CheapestSlot], selectedSlotID: Int?,
                   marginal: Double) -> SharedStorage.Snapshot? {
-        guard let first = prices.first else { return nil }
         let selected = slots.first { $0.id == selectedSlotID && $0.hours > 0 }
             ?? slots.first { $0.hours > 0 }
             ?? CheapestSlot(id: 0, hours: 1, deadline: -1)
-        let hourly = hourlyPrices
         return SharedStorage.Snapshot(
-            slotTotals: prices.map { $0.total(withMargin: marginal) },
-            slotStart: first.date,
-            slotMinutes: currentInterval.minutes,
+            prices: prices, hourly: hourlyPrices,
+            plan: plan, interval: currentInterval, marginal: marginal,
             cheapestHours: selected.hours,
-            selectedSlotDeadline: selected.deadline,
-            hourlyTotals: hourly.map { $0.total(withMargin: marginal) },
-            hourlyStart: hourly.first?.date ?? first.date,
-            writtenAt: Date()
+            selectedSlotDeadline: selected.deadline
         )
     }
 }

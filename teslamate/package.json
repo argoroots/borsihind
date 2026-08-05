@@ -1,0 +1,16 @@
+{
+  "name": "borsihind-teslamate",
+  "version": "1.0.0",
+  "description": "Updates TeslaMate geofence charging cost from borsihind.ee electricity prices",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "pg": "8.22.0"
+  }
+}

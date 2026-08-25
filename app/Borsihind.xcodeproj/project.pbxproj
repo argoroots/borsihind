@@ -450,7 +450,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = Complication/Complication.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Complication/Info.plist;
@@ -462,7 +462,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -484,7 +484,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = Complication/Complication.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Complication/Info.plist;
@@ -496,7 +496,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -519,7 +519,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -540,7 +540,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -565,7 +565,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -586,7 +586,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -733,7 +733,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -764,7 +764,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -788,7 +788,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Borsihind/Borsihind.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_APP_SANDBOX = YES;
@@ -819,7 +819,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -843,7 +843,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Watch/Watch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -854,7 +854,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -877,7 +877,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Watch/Watch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 6B4F7S5J46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -888,7 +888,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.borsihind.watch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;

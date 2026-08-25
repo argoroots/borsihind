@@ -77,6 +77,20 @@ enum SharedStorage {
         WidgetCenter.shared.reloadAllTimelines()
         #endif
     }
+
+    /// Read the current snapshot; if stale, missing, or running out of data,
+    /// refetch from S3 via `Snapshot.refresh(from:)` and persist. Used by both
+    /// the widget and complication `getTimeline` — keeps the extensions alive
+    /// when the host app hasn't run recently.
+    static func readAndRefreshSnapshot(at now: Date) async -> Snapshot? {
+        let snap = readSnapshot()
+        if Snapshot.shouldRefresh(snap, at: now),
+           let refreshed = await Snapshot.refresh(from: snap) {
+            writeSnapshot(refreshed)
+            return refreshed
+        }
+        return snap
+    }
 }
 
 // MARK: - Snapshot rendering helpers
@@ -85,10 +99,13 @@ enum SharedStorage {
 /// both read the current price, cheapest window, and timeline boundaries
 /// from one implementation (same `PriceCompute` math the app uses).
 extension SharedStorage.Snapshot {
+    /// Duration of one slot in seconds (15 min or 1 h).
+    var slotDuration: TimeInterval { TimeInterval(slotMinutes * 60) }
+
     /// `slotTotals` index containing `date`, or `nil` if out of range.
     func slotIndex(at date: Date) -> Int? {
         guard !slotTotals.isEmpty else { return nil }
-        let i = Int(date.timeIntervalSince(slotStart) / TimeInterval(slotMinutes * 60))
+        let i = Int(date.timeIntervalSince(slotStart) / slotDuration)
         return slotTotals.indices.contains(i) ? i : nil
     }
 
@@ -106,7 +123,7 @@ extension SharedStorage.Snapshot {
         let series = PriceCompute.SlotSeries(
             totals: slotTotals,
             baseDate: slotStart,
-            slotDuration: TimeInterval(slotMinutes * 60)
+            slotDuration: slotDuration
         )
         return PriceCompute.cheapestWindow(
             in: series,
@@ -138,13 +155,13 @@ extension SharedStorage.Snapshot {
         )
     }
 
-    /// `true` when the snapshot is missing, > 3 h old, or has < 1 h of
-    /// future slot data left — i.e. the extensions should refetch.
+    /// `true` when the snapshot is missing, > 1 h old, or has < 1 h of
+    /// future slot data left — i.e. the extensions should refetch. Aligned
+    /// with the hourly `refreshAfter` in `timelineDates(after:)`.
     static func shouldRefresh(_ snap: SharedStorage.Snapshot?, at now: Date) -> Bool {
         guard let snap, !snap.slotTotals.isEmpty else { return true }
-        if now.timeIntervalSince(snap.writtenAt) > 3 * 3600 { return true }
-        let slotDuration = TimeInterval(snap.slotMinutes * 60)
-        let lastSlotEnd = snap.slotStart.addingTimeInterval(TimeInterval(snap.slotTotals.count) * slotDuration)
+        if now.timeIntervalSince(snap.writtenAt) > 3600 { return true }
+        let lastSlotEnd = snap.slotStart.addingTimeInterval(TimeInterval(snap.slotTotals.count) * snap.slotDuration)
         return lastSlotEnd < now.addingTimeInterval(3600)
     }
 
@@ -182,16 +199,36 @@ extension SharedStorage.Snapshot {
     }
 
     /// Entry dates for a self-advancing timeline — `now` plus every
-    /// upcoming slot boundary — and the policy refresh date one slot past
-    /// the last entry. Lets the widget/complication re-render at each slot
-    /// without waiting on the app or a background task.
+    /// upcoming slot boundary — and the policy refresh date. Lets the
+    /// widget/complication re-render at each slot without waiting on the
+    /// app or a background task.
+    ///
+    /// `refreshAfter` is `min(data end, now + 1 h, next 14:05 EET)`. That
+    /// gives WidgetKit an hourly ping so `shouldRefresh` can self-fetch
+    /// (aligned with the > 1 h staleness threshold) AND an extra check right
+    /// after the daily S3 publish (~14:00 Europe/Tallinn), so the new day's
+    /// prices show up in the widget within minutes.
     func timelineDates(after now: Date) -> (dates: [Date], refreshAfter: Date) {
-        let slotDuration = TimeInterval(slotMinutes * 60)
         var dates = [now]
         for i in slotTotals.indices {
             let start = slotStart.addingTimeInterval(TimeInterval(i) * slotDuration)
             if start > now { dates.append(start) }
         }
-        return (dates, (dates.last ?? now).addingTimeInterval(slotDuration))
+        let dataEnd = (dates.last ?? now).addingTimeInterval(slotDuration)
+        let periodic = now.addingTimeInterval(3600)
+        let postPublish = Self.nextPublishCheck(after: now)
+        return (dates, [dataEnd, periodic, postPublish].min() ?? periodic)
+    }
+
+    /// Next 14:05 Europe/Tallinn — the S3 file typically publishes around
+    /// 14:00 EET, so this schedules a check 5 min after that.
+    private static func nextPublishCheck(after now: Date) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/Tallinn") ?? cal.timeZone
+        var comps = cal.dateComponents([.year, .month, .day], from: now)
+        comps.hour = 14
+        comps.minute = 5
+        let today = cal.date(from: comps) ?? now
+        return today > now ? today : (cal.date(byAdding: .day, value: 1, to: today) ?? today)
     }
 }

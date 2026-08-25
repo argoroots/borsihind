@@ -1,10 +1,12 @@
 import WidgetKit
 import SwiftUI
 
-/// Glanceable current-price widget. Reads pre-computed snapshots written
-/// by the main app to the App Group — no network or StoreKit calls in
-/// the widget process. Refreshes when the app re-writes the snapshot,
-/// plus once per slot end via the timeline policy.
+/// Glanceable current-price widget. Reads the App-Group snapshot written by
+/// the main app, and self-refreshes from S3 in `getTimeline` when the
+/// snapshot is stale — so the widget stays current even with the host app
+/// closed (mainly on macOS, where there's no `BGAppRefreshTask` analogue).
+/// No StoreKit in the widget process; premium gating reads `isSubscribed`
+/// from shared storage.
 struct CurrentPriceWidget: Widget {
     let kind = "CurrentPriceWidget"
 
@@ -52,16 +54,7 @@ struct PriceProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceTimelineEntry>) -> Void) {
         Task {
             let now = Date()
-            var snap = SharedStorage.readSnapshot()
-            // When the snapshot is missing, stale, or its data is running out,
-            // the widget refreshes itself — this is what keeps the widget alive
-            // on macOS where the host app has no `BGAppRefreshTask` analogue.
-            if SharedStorage.Snapshot.shouldRefresh(snap, at: now),
-               let refreshed = await SharedStorage.Snapshot.refresh(from: snap) {
-                snap = refreshed
-                SharedStorage.writeSnapshot(refreshed)
-            }
-
+            let snap = await SharedStorage.readAndRefreshSnapshot(at: now)
             let isSubscribed = SharedStorage.isSubscribed
 
             // Without data, fall back to a single entry + retry in 30 min.

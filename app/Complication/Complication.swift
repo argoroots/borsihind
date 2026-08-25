@@ -46,14 +46,7 @@ struct PriceProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<PriceTimelineEntry>) -> Void) {
         Task {
             let now = Date()
-            var snap = SharedStorage.readSnapshot()
-            // Refresh the snapshot ourselves when it's stale or running out of
-            // data — covers gaps where the Watch app hasn't run recently.
-            if SharedStorage.Snapshot.shouldRefresh(snap, at: now),
-               let refreshed = await SharedStorage.Snapshot.refresh(from: snap) {
-                snap = refreshed
-                SharedStorage.writeSnapshot(refreshed)
-            }
+            let snap = await SharedStorage.readAndRefreshSnapshot(at: now)
 
             guard let snap, !snap.slotTotals.isEmpty else {
                 let entry = PriceTimelineEntry(date: now, snapshot: nil)

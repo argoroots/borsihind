@@ -133,8 +133,9 @@ final class PricesViewModel {
     }
 
     /// Round `now` down to the start of the current interval's slot.
+    /// Tallinn calendar, so slots line up in time zones with half-hour offsets too.
     private static func currentSlotStart(interval: Interval, now: Date) -> Date {
-        let cal = Calendar.current
+        let cal = Calendar.tallinn
         var comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: now)
         if interval == .fifteenMin, let m = comps.minute {
             comps.minute = (m / 15) * 15

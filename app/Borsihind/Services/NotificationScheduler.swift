@@ -35,6 +35,8 @@ enum NotificationScheduler {
         center.removePendingNotificationRequests(withIdentifiers: slotIdentifiers)
 
         let now = Date()
+        // Device calendar on purpose: the trigger matches components in the
+        // device's time zone, so this fires at the exact `fireDate` instant.
         let cal = Calendar.current
         let fmt = Date.VerbatimFormatStyle.hourMinute24
         for slot in slots {

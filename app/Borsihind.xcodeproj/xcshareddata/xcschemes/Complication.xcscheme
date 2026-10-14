@@ -112,7 +112,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3D1EA7852FBDB1DA00625B50"
             BuildableName = "Complication.appex"
-            BlueprintName = "Complication"
             ReferencedContainer = "container:Borsihind.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

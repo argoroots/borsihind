@@ -1,9 +1,25 @@
 import Foundation
 
-/// One price row, c/kWh (already converted from €/MWh).
+/// Price file as published on S3: slot times in UTC, prices in €/kWh
+/// with VAT.
+struct PriceFile: Decodable, Sendable {
+    struct Slot: Decodable, Sendable {
+        let start: Date
+        let electricity: Double
+        let transmission: Double
+        let renewable: Double
+        let excise: Double
+        let supplySecurity: Double
+    }
+
+    let prices: [Slot]
+}
+
+/// One price row, c/kWh (already converted from €/kWh).
 /// Stack order bottom → top: excise, supplySecurity, renewable,
 /// transmission, electricity. `marginal` is added separately by the UI.
 struct PriceEntry: Identifiable, Hashable, Sendable {
+    /// Slot start (absolute time).
     let date: Date
     let electricity: Double
     let transmission: Double
@@ -13,26 +29,26 @@ struct PriceEntry: Identifiable, Hashable, Sendable {
 
     var id: Date { date }
 
-    /// Decode one entry from the raw JSON array:
-    /// `[year, month, day, hour, minute, electricity, transmission,
-    ///   renewable, excise, supplySecurity]`. Prices are €/MWh → ×100 c/kWh.
-    static func decode(from raw: [Double]) -> PriceEntry? {
-        guard raw.count >= 10 else { return nil }
-        var comps = DateComponents()
-        comps.year = Int(raw[0])
-        comps.month = Int(raw[1])
-        comps.day = Int(raw[2])
-        comps.hour = Int(raw[3])
-        comps.minute = Int(raw[4])
-        guard let date = Calendar(identifier: .gregorian).date(from: comps) else { return nil }
-        return PriceEntry(
-            date: date,
-            electricity: raw[5] * 100,
-            transmission: raw[6] * 100,
-            renewable: raw[7] * 100,
-            excise: raw[8] * 100,
-            supplySecurity: raw[9] * 100
+    /// Convert one slot from the price file. Prices are €/kWh → ×100 c/kWh.
+    init(slot: PriceFile.Slot) {
+        self.init(
+            date: slot.start,
+            electricity: slot.electricity * 100,
+            transmission: slot.transmission * 100,
+            renewable: slot.renewable * 100,
+            excise: slot.excise * 100,
+            supplySecurity: slot.supplySecurity * 100
         )
+    }
+
+    init(date: Date, electricity: Double, transmission: Double,
+         renewable: Double, excise: Double, supplySecurity: Double) {
+        self.date = date
+        self.electricity = electricity
+        self.transmission = transmission
+        self.renewable = renewable
+        self.excise = excise
+        self.supplySecurity = supplySecurity
     }
 
     /// Sum of all components, excluding marginal.

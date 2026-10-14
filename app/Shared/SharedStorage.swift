@@ -105,14 +105,15 @@ extension SharedStorage.Snapshot {
     /// `slotTotals` index containing `date`, or `nil` if out of range.
     func slotIndex(at date: Date) -> Int? {
         guard !slotTotals.isEmpty else { return nil }
-        let i = Int(date.timeIntervalSince(slotStart) / slotDuration)
+        // floor, so a date just before `slotStart` doesn't truncate to slot 0
+        let i = Int((date.timeIntervalSince(slotStart) / slotDuration).rounded(.down))
         return slotTotals.indices.contains(i) ? i : nil
     }
 
     /// Fully-loaded price (margin + VAT folded in) for the slot at `date`.
+    /// `nil` outside the data range, so a stale price is never shown.
     func price(at date: Date) -> Double? {
-        guard !slotTotals.isEmpty else { return nil }
-        return slotTotals[slotIndex(at: date) ?? 0]
+        slotIndex(at: date).map { slotTotals[$0] }
     }
 
     /// Cheapest selected-length window starting at or after `date`,
@@ -128,7 +129,8 @@ extension SharedStorage.Snapshot {
         return PriceCompute.cheapestWindow(
             in: series,
             spanSlots: max(cheapestHours, 1) * slotsPerHour,
-            fromIndex: max(slotIndex(at: date) ?? 0, 0),
+            // Before the data: search everything; after it: nothing (no stale window)
+            fromIndex: slotIndex(at: date) ?? (date < slotStart ? 0 : slotTotals.count),
             deadlineEnd: PriceCompute.nextOccurrence(ofHour: selectedSlotDeadline, after: date)
         )
     }

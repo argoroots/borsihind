@@ -86,10 +86,10 @@ enum PriceCompute {
         )
     }
 
-    /// Next occurrence of `hourOfDay`:00 at or after `now`. Returns
-    /// `nil` for out-of-range hours (`-1` = off).
+    /// Next occurrence of `hourOfDay`:00 (Tallinn time, like every time shown)
+    /// at or after `now`. Returns `nil` for out-of-range hours (`-1` = off).
     static func nextOccurrence(ofHour hourOfDay: Int, after now: Date,
-                                      calendar: Calendar = .current) -> Date? {
+                                      calendar: Calendar = .tallinn) -> Date? {
         guard (0...23).contains(hourOfDay) else { return nil }
         var comps = calendar.dateComponents([.year, .month, .day], from: now)
         comps.hour = hourOfDay

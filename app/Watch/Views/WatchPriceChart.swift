@@ -101,7 +101,7 @@ struct WatchPriceChart: View {
 
     /// Label only top-of-hour slots on a 6-hour stride (00/06/12/18).
     private func isLabelledHour(_ date: Date) -> Bool {
-        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let comps = Calendar.tallinn.dateComponents([.hour, .minute], from: date)
         return comps.minute == 0 && (comps.hour ?? 0) % 6 == 0
     }
 }

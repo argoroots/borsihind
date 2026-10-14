@@ -271,7 +271,7 @@ struct PriceChart: View {
     /// have a "next" tick to anchor against — even when the app opens
     /// mid-hour (e.g. first slot at 09:15).
     private var hourBoundaryDates: [Date] {
-        let cal = Calendar.current
+        let cal = Calendar.tallinn
         var dates: [Date] = []
 
         if let first = prices.first?.date {
@@ -293,7 +293,7 @@ struct PriceChart: View {
 
     /// Midnight boundaries inside the x-domain — drive the day-divider rule.
     private var midnightDates: [Date] {
-        let cal = Calendar.current
+        let cal = Calendar.tallinn
         return hourBoundaryDates.filter { cal.component(.hour, from: $0) == 0 }
     }
 
@@ -311,7 +311,7 @@ struct PriceChart: View {
 
     private func showLabel(at value: AxisValue, step: Int) -> Bool {
         guard let date = value.as(Date.self) else { return true }
-        return Calendar.current.component(.hour, from: date) % step == 0
+        return Calendar.tallinn.component(.hour, from: date) % step == 0
     }
 
     /// Visible time range. Extends back to the first slot's hour start so

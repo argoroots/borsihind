@@ -345,7 +345,7 @@ private extension CurrentPriceWidgetView {
     var midnightIndices: Set<Int> {
         guard let snap = entry.snapshot, !futureHourlyTotals.isEmpty else { return [] }
         let offset = hourlyOffset
-        let cal = Calendar.current
+        let cal = Calendar.tallinn
         var out: Set<Int> = []
         for i in 1..<futureHourlyTotals.count {
             let date = snap.hourlyStart.addingTimeInterval(TimeInterval(offset + i) * 3600)

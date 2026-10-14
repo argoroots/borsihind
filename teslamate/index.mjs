@@ -55,43 +55,17 @@ function savePrices () {
   fs.writeFileSync(PRICES_FILE, JSON.stringify({ interval: INTERVAL, plan: VORK, prices }))
 }
 
-const tallinnFormat = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'Europe/Tallinn',
-  year: 'numeric', month: '2-digit', day: '2-digit',
-  hour: '2-digit', minute: '2-digit', second: '2-digit',
-  hour12: false
-})
-
-function tallinnOffset (epochMs) {
-  const parts = Object.fromEntries(tallinnFormat.formatToParts(epochMs).map((p) => [p.type, p.value]))
-
-  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour % 24, parts.minute, parts.second) - epochMs
-}
-
-// Convert Europe/Tallinn wall-clock components to a UTC epoch (ms)
-function tallinnToUtc (year, month, day, hour, minute) {
-  let guess = Date.UTC(year, month - 1, day, hour, minute)
-
-  for (let i = 0; i < 2; i++) {
-    guess = Date.UTC(year, month - 1, day, hour, minute) - tallinnOffset(guess)
-  }
-
-  return guess
-}
-
 async function fetchPrices () {
-  const suffix = INTERVAL === '15min' ? '15min/' : ''
-  const response = await fetch(`https://borsihind.s3.eu-central-1.amazonaws.com/${suffix}${VORK}.json`)
+  const response = await fetch(`https://borsihind.s3.eu-central-1.amazonaws.com/v2/${INTERVAL}/${VORK}.json`)
 
   if (!response.ok) throw new Error(`Price API returned ${response.status}`)
 
-  const rows = await response.json()
+  const { prices: slots } = await response.json()
   const cutoff = Date.now() - KEEP_MS
 
-  for (const x of rows) {
-    const ts = tallinnToUtc(x.at(0), x.at(1), x.at(2), x.at(3), x.at(4))
-    // electricity + grid + renewable tax + excise + supply security fee
-    prices[ts] = Math.round((x.at(5) + x.at(6) + x.at(7) + x.at(8) + x.at(9)) * 10000) / 10000
+  for (const x of slots) {
+    // Slot start in UTC; total = electricity + grid + renewable tax + excise + supply security fee, EUR/kWh with VAT
+    prices[Date.parse(x.start)] = x.total
   }
 
   for (const ts of Object.keys(prices)) {

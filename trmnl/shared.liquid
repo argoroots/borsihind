@@ -101,7 +101,7 @@
       if (el) el.textContent = text
     }
 
-    // v2 data: { prices: [{ start, end, electricity, transmission, renewable, excise, supplySecurity, total }] }
+    // Data: { prices: [{ start, end, electricity, transmission, renewable, excise, supplySecurity, total }] }
     // Times are UTC, prices EUR/kWh with VAT - IDX_0 = 1h intervals, IDX_1 = 15min intervals
     const hourlyData = {{ IDX_0 | json }}
     const quarterHourlyData = {{ IDX_1 | json }}

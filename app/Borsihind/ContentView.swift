@@ -216,8 +216,12 @@ struct ContentView: View {
         .onChange(of: lowestWindows.map(\.slotIndex), initial: true) { _, _ in
             syncPagerSlotFromStorage()
         }
-        // User-driven carousel swipe — persist the new selection.
+        // User-driven carousel swipe — persist the new selection. A swipe needs
+        // at least two cards; with one card (e.g. only the free 1h slot while
+        // the subscription state is still resolving at launch) the change is
+        // the automatic fallback and must not overwrite the saved selection.
         .onChange(of: pagerSlot) { _, new in
+            guard isPhone, store.hasResolvedSubscriptionState, lowestWindows.count > 1 else { return }
             if let v = new, String(v) != lowestRaw { lowestRaw = String(v) }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -383,6 +387,9 @@ struct ContentView: View {
     /// Called when the windows list (re-)appears so the carousel scrolls to
     /// the user's last-selected slot after async data load.
     private func syncPagerSlotFromStorage() {
+        // iPhone only: iPad/Mac show a card list where "no selection" is valid,
+        // and falling back to the first card would overwrite it.
+        guard isPhone else { return }
         let ids = lowestWindows.map(\.slotIndex)
         if let sel = Int(lowestRaw), ids.contains(sel) {
             if pagerSlot != sel { pagerSlot = sel }

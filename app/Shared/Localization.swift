@@ -61,35 +61,21 @@ extension Double {
     var centsString: String { "\(Int(rounded()))" }
 }
 
-extension TimeZone {
-    /// Prices are Estonian, so times are always shown and grouped in
-    /// Tallinn time, wherever the device is.
-    static let tallinn = TimeZone(identifier: "Europe/Tallinn") ?? .current
-}
-
-extension Calendar {
-    /// Gregorian calendar in Tallinn time — for hour/day boundaries of slots.
-    static let tallinn: Calendar = {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = .tallinn
-        return cal
-    }()
-}
-
 extension Date.VerbatimFormatStyle {
-    /// 24-hour `HH:mm` in Tallinn time. Verbatim — bypasses locale/region
-    /// so 13:00 never renders as "01:00". (macOS honors locale `hourCycle`
+    /// 24-hour `HH:mm` in the device's time zone, so times match the system
+    /// clock and notifications. Verbatim — bypasses locale/region so 13:00
+    /// never renders as "01:00". (macOS honors locale `hourCycle`
     /// inconsistently depending on region settings.)
     static let hourMinute24 = Date.VerbatimFormatStyle(
         format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-        timeZone: .tallinn,
-        calendar: .tallinn
+        timeZone: .autoupdatingCurrent,
+        calendar: .autoupdatingCurrent
     )
 
-    /// 24-hour `HH` without minutes, in Tallinn time. Same locale-stability rationale.
+    /// 24-hour `HH` without minutes. Same locale-stability rationale.
     static let hour24 = Date.VerbatimFormatStyle(
         format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))",
-        timeZone: .tallinn,
-        calendar: .tallinn
+        timeZone: .autoupdatingCurrent,
+        calendar: .autoupdatingCurrent
     )
 }

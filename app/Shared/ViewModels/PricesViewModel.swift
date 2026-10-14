@@ -133,16 +133,11 @@ final class PricesViewModel {
     }
 
     /// Round `now` down to the start of the current interval's slot.
-    /// Tallinn calendar, so slots line up in time zones with half-hour offsets too.
+    /// Slots are aligned to UTC (whole 15 min / hours), so round the absolute
+    /// time — correct in every device time zone, including half-hour offsets.
     private static func currentSlotStart(interval: Interval, now: Date) -> Date {
-        let cal = Calendar.tallinn
-        var comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: now)
-        if interval == .fifteenMin, let m = comps.minute {
-            comps.minute = (m / 15) * 15
-        } else {
-            comps.minute = 0
-        }
-        return cal.date(from: comps) ?? now
+        let slot = TimeInterval(interval.minutes * 60)
+        return Date(timeIntervalSince1970: (now.timeIntervalSince1970 / slot).rounded(.down) * slot)
     }
 
     /// Average of running an N-hour load starting NOW — baseline for

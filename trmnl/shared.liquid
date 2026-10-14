@@ -111,8 +111,9 @@
     const margin = (parseFloat('{{ trmnl.plugin_settings.custom_fields_values.margin }}'.replace(',', '.')) || 0) / 100
     const sourceData = interval === 60 ? hourlyData : quarterHourlyData
 
-    // Prices are Estonian, so times are always shown in Tallinn time
-    const timeFormat = new Intl.DateTimeFormat('et-EE', { timeZone: 'Europe/Tallinn', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    // Times in the user's TRMNL account time zone (the render server's own zone is not the user's)
+    const timeZone = '{{ trmnl.user.time_zone_iana }}' || 'Europe/Tallinn'
+    const timeFormat = new Intl.DateTimeFormat('et-EE', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
     // TRMNL may pass the polled object as is or wrapped in `data`, possibly as a JSON string
     let wrapped = sourceData?.data

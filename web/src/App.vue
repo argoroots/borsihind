@@ -19,6 +19,7 @@ const intervals = [
 ]
 const blueColors = ['#1e40af', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
 const greenColors = ['#065f46', '#047857', '#059669', '#10b981', '#34d399', '#6ee7b7']
+const timeFormat = new Intl.DateTimeFormat('et-EE', { timeZone: 'Europe/Tallinn', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
 // Refs
 const selectedPlan = ref(plans.find(x => x.value === (new URLSearchParams(window.location.search).get('plan') || 'V1')))
@@ -76,14 +77,13 @@ const data = computed(() => {
   ]
 
   const rows = prices.value.map((x, idx) => {
-    const time = x.at(0)
-    const priceData = [x.at(1), x.at(2), x.at(3), x.at(4), x.at(5)]
+    const priceData = [x.excise, x.supplySecurity, x.renewable, x.transmission, x.electricity]
     const isSelected = hasSelection && idx >= startIndex && idx <= endIndex
     const colors = isSelected ? greenColors : blueColors
 
     return [
-      formatLabelForChart(time),
-      createTooltip(time, priceData, marginalValue, colors, is1h.value),
+      formatLabelForChart(x.startTime),
+      createTooltip(x.startTime, priceData, marginalValue, colors, is1h.value),
       marginalValue,
       colors.at(0),
       priceData.at(0),
@@ -186,50 +186,35 @@ function formatLabelForChart (label) {
 }
 
 async function getPrices () {
-  const interval = is1h.value ? '' : '15min/'
-  const response = await fetch(`https://borsihind.s3.eu-central-1.amazonaws.com/${interval}${selectedPlan.value.value}.json`)
+  const interval = is1h.value ? '1h' : '15min'
+  const response = await fetch(`https://borsihind.s3.eu-central-1.amazonaws.com/v2/${interval}/${selectedPlan.value.value}.json`)
   const responseJson = await response.json()
 
   const now = new Date()
-  const currentHour = now.getHours()
-  const currentMinute = now.getMinutes()
-  // Round down to nearest 15min interval (0, 15, 30, 45)
-  const currentInterval15 = Math.floor(currentMinute / 15) * 15
 
-  // Filter data based on current time before processing
-  prices.value = responseJson.filter((x) => {
-    const priceYear = x.at(0)
-    const priceMonth = x.at(1)
-    const priceDay = x.at(2)
-    const priceHour = x.at(3)
-    const priceMinute = x.at(4)
-
-    // Create date objects for comparison
-    const priceDate = new Date(priceYear, priceMonth - 1, priceDay, priceHour, priceMinute)
-    const currentDate = is1h.value
-      ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), currentHour, 0)
-      : new Date(now.getFullYear(), now.getMonth(), now.getDate(), currentHour, currentInterval15)
-
-    // Keep entries that are at or after the current time
-    return priceDate >= currentDate
-  }).map((x) => [
-    x.at(3).toString().padStart(2, '0') + ':' + x.at(4).toString().padStart(2, '0'),
-    x.at(8) * 100, // excise
-    x.at(9) * 100, // supply security fee
-    x.at(7) * 100, // renewable tax
-    x.at(6) * 100, // grid transmission
-    x.at(5) * 100, // electricity price
-    x.at(0), // year
-    x.at(1), // month
-    x.at(2) // day
-  ])
+  // Keep the current slot and everything after it; components in cents/kWh, VAT included
+  prices.value = responseJson.prices
+    .map((x) => ({
+      start: new Date(x.start),
+      end: new Date(x.end),
+      startTime: timeFormat.format(new Date(x.start)),
+      endTime: timeFormat.format(new Date(x.end)),
+      electricity: x.electricity * 100,
+      transmission: x.transmission * 100,
+      renewable: x.renewable * 100,
+      excise: x.excise * 100,
+      supplySecurity: x.supplySecurity * 100,
+      total: x.total * 100
+    }))
+    .filter((x) => x.end > now)
 }
 
 function findLowestTimeSpan (prices, span) {
   if (prices.length === 0) return {}
 
+  // Total includes VAT; margin is entered with VAT
   const marginalValue = marginal.value || 0
-  const pricesSum = prices.map((x) => x.at(1) + x.at(2) + x.at(3) + x.at(4) + x.at(5) + marginalValue)
+  const pricesSum = prices.map((x) => x.total + marginalValue)
 
   let lowestSum = Infinity
   let lowestSumIndex = -1
@@ -246,23 +231,13 @@ function findLowestTimeSpan (prices, span) {
   // Not enough data for the requested span
   if (lowestSumIndex === -1) return {}
 
-  // Calculate end time based on interval
-  const minutesPerUnit = is1h.value ? 60 : 15
-
-  const startTime = prices.at(lowestSumIndex).at(0)
-  const [startHours, startMinutes] = startTime.split(':').map(Number)
-
-  const totalMinutes = span * minutesPerUnit
-  const endTime = new Date()
-  endTime.setHours(startHours, startMinutes + totalMinutes, 0, 0)
-
-  const endTimeStr = endTime.getHours().toString().padStart(2, '0') + ':' + endTime.getMinutes().toString().padStart(2, '0')
+  const endIndex = lowestSumIndex + span - 1
 
   return {
-    start: prices.at(lowestSumIndex).at(0),
+    start: prices.at(lowestSumIndex).startTime,
     startIndex: lowestSumIndex,
-    end: endTimeStr,
-    endIndex: lowestSumIndex + span - 1,
+    end: prices.at(endIndex).endTime,
+    endIndex,
     price: lowestSum / span
   }
 }
@@ -365,7 +340,7 @@ function findLowestTimeSpan (prices, span) {
     </div>
 
     <div class="pb-2 italic text-sm text-center">
-      Hinnad on koos käibemaksuga, sentides kilovatt-tunni kohta.
+      Hinnad on koos käibemaksuga, s/kWh. Odavaimad perioodid sisaldavad käibemaksu ja marginaali. Marginaal sisesta koos käibemaksuga.
     </div>
   </main>
 </template>

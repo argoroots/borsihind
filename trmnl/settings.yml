@@ -1,0 +1,87 @@
+---
+strategy: polling
+no_screen_padding: 'no'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+framework_version: 3.1.8
+serverless_language: ''
+refresh_interval_floor:
+polling_url: "https://borsihind.s3.eu-central-1.amazonaws.com/v2/1h/{{ plan }}.json\r\nhttps://borsihind.s3.eu-central-1.amazonaws.com/v2/15min/{{ plan }}.json"
+polling_headers: ''
+polling_body: ''
+id: 122983
+oauth_enabled: 'false'
+oauth_pkce_enabled: 'no'
+oauth_authorize_url: ''
+oauth_token_url: ''
+oauth_scopes: ''
+oauth_scope_separator: ''
+oauth_refresh_url: ''
+oauth_auth_params: ''
+oauth_token_headers: ''
+oauth_token_site: ''
+oauth_token_params: ''
+oauth_token_request_auth_method: ''
+oauth_body_format: ''
+oauth_token_response_metadata: ''
+oauth_authorization_method: ''
+oauth_refresh_params: ''
+oauth_token_field_name: ''
+oauth_expiry_field_name: ''
+oauth_expiry_strategy: ''
+oauth_fixed_expiry_ms: ''
+custom_fields:
+- keyname: about
+  name: About This Plugin
+  field_type: author_bio
+  description: Display real-time Estonian electricity prices from börsihind.ee on your TRMNL screen. View current pricing in cents per kWh including VAT, find the cheapest 1-4 hour periods for optimal energy usage, and see hourly price trends. Complete breakdown includes electricity price, transmission costs, renewable energy fees, and excise tax.
+  github_url: https://github.com/argoroots/trmnl
+  learn_more_url: https://www.borsihind.ee
+  email_address: argo@roots.ee
+- keyname: plan
+  field_type: select
+  name: Pricing Plan
+  description: Select your Elektrilevi network pricing plan. Each plan has different transmission rates that affect your total electricity cost.
+  default: V1
+  optional: false
+  options:
+  - Võrk 1: V1
+  - Võrk 2: V2
+  - Võrk 4: V4
+  - Võrk 5: V5
+- keyname: margin
+  field_type: string
+  name: Seller Margin
+  description: Set the margin (cents/kWh, including VAT) that your electricity seller adds to the base price. This is used to calculate the total cost of electricity.
+- keyname: interval
+  name: Chart Interval
+  description: Choose the time interval for the price chart. 15min shows detailed quarter-hour data, 1h shows hourly averages.
+  field_type: select
+  options:
+  - 15 minutes: 15
+  - 1 hour: 60
+  default: 15
+  optional: false
+- keyname: timespan
+  field_type: select
+  name: Highlighted Timespan
+  description: Choose which cheapest hour period to highlight with special styling on the display.
+  optional: true
+  options:
+  - 1 hour: 1
+  - 2 hours: 2
+  - 3 hours: 3
+  - 4 hours: 4
+- keyname: language
+  name: Language
+  description: Language for price labels and interface text.
+  field_type: select
+  options:
+  - Eesti keel: et
+  - English: en
+  default: et
+  optional: false
+name: Börsihind.ee
+description: Real-time Estonian electric prices
+refresh_interval: 15

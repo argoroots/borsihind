@@ -1,0 +1,311 @@
+{% template pricelist %}
+<table class="table table--condensed">
+  <tbody>
+    <tr>
+      <td><span class="label label--small" id="electricity-price-label">Elektri hind</span></td>
+      <td class="text--right"><span class="label label--small" id="current-electricity-price"></span></td>
+    </tr>
+    <tr>
+      <td><span class="label label--small" id="transmission-cost-label">Edastamise tasu</span></td>
+      <td class="text--right"><span class="label label--small" id="current-transmission-cost"></span></td>
+    </tr>
+    <tr>
+      <td><span class="label label--small" id="state-fees-label">Riigi maksud</span></td>
+      <td class="text--right"><span class="label label--small" id="current-state-fees"></span></td>
+    </tr>
+    <tr>
+      <td><span class="label label--small" id="margin-label">Müüja marginaal</span></td>
+      <td class="text--right"><span class="label label--small" id="current-margin"></span></td>
+    </tr>
+  </tbody>
+</table>
+{% endtemplate %}
+
+{% template timespan %}
+<div class="w--full flex flex--row flex--top pt--1 px--3" id="cheapest-{{ hours }}h-container">
+  <div class="label label--small label--filled px--2">{{ hours }}h</div>
+  <div class="stretch">
+    <div class="w--full flex flex--row">
+      <span class="title title--small" id="cheapest-{{ hours }}h-start"></span>
+      <span class="title title--small text--center stretch">-</span>
+      <span class="title title--small" id="cheapest-{{ hours }}h-end"></span>
+    </div>
+    <div class="flex flex--row">
+      <span class="label label--small stretch" id="cheapest-{{ hours }}h-value"></span>
+      <span class="label label--small" id="cheapest-{{ hours }}h-diff"></span>
+    </div>
+  </div>
+</div>
+{% endtemplate %}
+
+<script src='https://trmnl.com/js/highcharts/12.3.0/highcharts.js'></script>
+<script src='https://trmnl.com/js/highcharts/12.3.0/pattern-fill.js'></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Translation definitions
+    const translations = {
+      electricityPrice: {
+        et: 'Elektri hind',
+        en: 'Electricity price'
+      },
+      transmissionCost: {
+        et: 'Edastamise tasu',
+        en: 'Transmission cost'
+      },
+      stateFees: {
+        et: 'Riigi maksud',
+        en: 'State taxes'
+      },
+      margin: {
+        et: 'Müüja marginaal',
+        en: 'Seller margin'
+      },
+      cheapHours: {
+        et: 'Odavad tunnid',
+        en: 'Cheap hours'
+      },
+      noData: {
+        et: 'Andmed puuduvad',
+        en: 'No data'
+      }
+    }
+
+    const language = '{{ trmnl.plugin_settings.custom_fields_values.language }}' || 'et'
+
+    // Update translation labels
+    const electricityPriceLabelEl = document.getElementById('electricity-price-label')
+    if (electricityPriceLabelEl) electricityPriceLabelEl.textContent = translations.electricityPrice[language]
+
+    const transmissionCostLabelEl = document.getElementById('transmission-cost-label')
+    if (transmissionCostLabelEl) transmissionCostLabelEl.textContent = translations.transmissionCost[language]
+
+    const stateFeesLabelEl = document.getElementById('state-fees-label')
+    if (stateFeesLabelEl) stateFeesLabelEl.textContent = translations.stateFees[language]
+
+    const marginLabelEl = document.getElementById('margin-label')
+    if (marginLabelEl) marginLabelEl.textContent = translations.margin[language]
+
+    // Update cheap hours title
+    const cheapHoursTitleEl = document.getElementById('cheap-hours-title')
+    if (cheapHoursTitleEl) cheapHoursTitleEl.textContent = translations.cheapHours[language]
+
+    // Format cents with 2 decimals, rounding halves up without floating point noise
+    // (e.g. 15.335 -> "15.34"). Web uses the same rounding.
+    function formatCents (value) {
+      return (Math.round(Math.round(value * 1e6) / 1e4) / 100).toFixed(2)
+    }
+
+    function setText (id, text) {
+      const el = document.getElementById(id)
+      if (el) el.textContent = text
+    }
+
+    // v2 data: { prices: [{ start, end, electricity, transmission, renewable, excise, supplySecurity, total }] }
+    // Times are UTC, prices EUR/kWh with VAT - IDX_0 = 1h intervals, IDX_1 = 15min intervals
+    const hourlyData = {{ IDX_0 | json }}
+    const quarterHourlyData = {{ IDX_1 | json }}
+    const selectedTimespan = '{{ trmnl.plugin_settings.custom_fields_values.timespan }}'
+    const interval = parseInt('{{ trmnl.plugin_settings.custom_fields_values.interval }}') || 15
+    // Margin is entered in cents/kWh with VAT
+    const margin = (parseFloat('{{ trmnl.plugin_settings.custom_fields_values.margin }}'.replace(',', '.')) || 0) / 100
+    const sourceData = interval === 60 ? hourlyData : quarterHourlyData
+
+    // Prices are Estonian, so times are always shown in Tallinn time
+    const timeFormat = new Intl.DateTimeFormat('et-EE', { timeZone: 'Europe/Tallinn', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+    // TRMNL may pass the polled object as is or wrapped in `data`, possibly as a JSON string
+    let wrapped = sourceData?.data
+    if (typeof wrapped === 'string') {
+      try { wrapped = JSON.parse(wrapped) } catch (e) {}
+    }
+    const sourcePrices = sourceData?.prices ?? wrapped?.prices
+
+    // Keep the current slot and everything after it
+    const now = new Date()
+    const rawData = (Array.isArray(sourcePrices) ? sourcePrices : [])
+      .map(x => ({
+        startTime: timeFormat.format(new Date(x.start)),
+        endTime: timeFormat.format(new Date(x.end)),
+        end: new Date(x.end),
+        electricity: x.electricity,
+        transmission: x.transmission,
+        stateFees: x.renewable + x.supplySecurity + x.excise,
+        total: x.total + margin
+      }))
+      .filter(x => x.end > now)
+
+    if (rawData.length === 0) {
+      setText('current-value', '–')
+      setText('current-time', translations.noData[language])
+      return
+    }
+
+    // Cheapest window of `span` slots; null when there is not enough data
+    function findLowestTimeSpan (prices, span) {
+      if (prices.length < span) return null
+
+      let lowestSum = Infinity
+      let lowestSumIndex = -1
+
+      for (let i = 0; i < prices.length - span + 1; i++) {
+        const sum = prices.slice(i, i + span).reduce((acc, x) => acc + x.total, 0)
+
+        // Use < (not <=) to keep the earliest period when multiple periods have the same price
+        // Round to 4 decimal places to avoid floating-point precision issues
+        if (Math.round(sum * 10000) < Math.round(lowestSum * 10000)) {
+          lowestSum = sum
+          lowestSumIndex = i
+        }
+      }
+
+      // Baseline: the same-length window starting now
+      const nowSum = prices.slice(0, span).reduce((acc, x) => acc + x.total, 0)
+
+      return {
+        start: prices[lowestSumIndex].startTime,
+        end: prices[lowestSumIndex + span - 1].endTime,
+        price: lowestSum / span * 100,
+        nowPrice: nowSum / span * 100
+      }
+    }
+
+    // Savings vs. starting now: "-12%" cheaper, "+5%" more expensive
+    function formatDifference (window) {
+      if (window.nowPrice <= 0) return ''
+      const difference = Math.round((window.price - window.nowPrice) / window.nowPrice * 100)
+      return difference > 0 ? `+${difference}%` : `${difference}%`
+    }
+
+    const current = rawData[0]
+    const currentPrice = current.total * 100
+
+    setText('current-value', formatCents(currentPrice))
+    setText('current-time', `${current.startTime} – ${current.endTime}`)
+
+    // Cheapest periods: 15min interval has 4 slots per hour, 1h interval 1 slot
+    const slotsPerHour = interval === 60 ? 1 : 4
+
+    for (const hours of [1, 2, 3, 4]) {
+      const cheapest = findLowestTimeSpan(rawData, hours * slotsPerHour)
+
+      setText(`cheapest-${hours}h-start`, cheapest ? cheapest.start : '–')
+      setText(`cheapest-${hours}h-end`, cheapest ? cheapest.end : '–')
+      setText(`cheapest-${hours}h-value`, cheapest ? formatCents(cheapest.price) : '')
+      setText(`cheapest-${hours}h-diff`, cheapest ? formatDifference(cheapest) : '')
+    }
+
+    // Outline the chosen timespan (only if one is selected)
+    if (selectedTimespan) {
+      const selectedContainer = document.getElementById(`cheapest-${selectedTimespan}h-container`)
+      if (selectedContainer) selectedContainer.classList.add('outline')
+    }
+
+    // Update current price component breakdown (convert to cents)
+    setText('current-electricity-price', formatCents(current.electricity * 100))
+    setText('current-transmission-cost', formatCents(current.transmission * 100))
+    setText('current-state-fees', formatCents(current.stateFees * 100))
+    setText('current-margin', formatCents(margin * 100))
+
+    // Chart: 15min shows all slots but labels only full hours (see xAxis formatter)
+    const categories = rawData.map(x => interval === 60 ? x.startTime.split(':')[0] : x.startTime)
+
+    // Chart series in cents, stacked bottom to top
+    const formattedBarData = [
+      { name: translations.electricityPrice[language], data: rawData.map(x => x.electricity * 100) },
+      { name: translations.transmissionCost[language], data: rawData.map(x => x.transmission * 100) },
+      { name: translations.stateFees[language], data: rawData.map(x => x.stateFees * 100) },
+      { name: translations.margin[language], data: rawData.map(() => margin * 100) }
+    ]
+
+    // Draw the chart with the framework chart helpers, so fills, grid and labels
+    // follow the device, dark mode and theme, and the chart redraws when they change
+    function drawChart () {
+      const el = document.getElementById('price-chart')
+      if (!el || !window.TRMNLCharts || !window.Highcharts) return
+
+      TRMNLCharts.watch(el, function () {
+        const px = (value) => TRMNLPaint.px(value, { el: el })
+
+        // Spline area for 15min, stacked column for 60min
+        return Highcharts.chart(el, TRMNLCharts.merge(TRMNLCharts.options({ el: el }), {
+          chart: {
+            type: interval === 15 ? 'areaspline' : 'column',
+            height: null,
+            width: null,
+            animation: false,
+            spacing: px([5, 5, 5, 5])
+          },
+          plotOptions: {
+            series: {
+              animation: false,
+              enableMouseTracking: false,
+              states: { hover: { enabled: false } },
+              stacking: 'normal'
+            },
+            column: {
+              pointPadding: 0.05,
+              groupPadding: 0.1,
+              borderWidth: 0,
+              borderRadius: 0
+            },
+            areaspline: {
+              lineWidth: px(1),
+              marker: { enabled: false }
+            }
+          },
+          series: formattedBarData.map((series, i) => ({
+            ...series,
+            color: TRMNLCharts.series(i, formattedBarData.length, { el: el })
+          })),
+          tooltip: { enabled: false },
+          legend: { enabled: false },
+          yAxis: {
+            labels: { x: px(-10) },
+            gridLineDashStyle: 'shortdot',
+            title: { text: null }
+          },
+          xAxis: {
+            categories: categories,
+            labels: {
+              y: px(20),
+              rotation: 0,
+              align: 'center',
+              step: interval === 15 ? 4 : 1,
+              formatter: function () {
+                // For 15min interval, extract just the hour from HH:MM format
+                if (interval === 15 && this.value && this.value.includes(':')) {
+                  return this.value.split(':')[0]
+                }
+                return this.value
+              }
+            },
+            // No vertical grid lines
+            gridLineWidth: 0,
+            title: { text: null }
+          }
+        }))
+      })
+    }
+
+    // TRMNLCharts comes from the plugin runtime; wait for it if it is not ready yet
+    if (window.TRMNLCharts && window.Highcharts) {
+      drawChart()
+    } else {
+      window.addEventListener('load', drawChart, { once: true })
+    }
+  })
+</script>
+
+<style>
+  .label--filled {
+    border-radius: 0 !important;
+    height: 22px !important;
+    line-height: 1.25rem !important;
+  }
+  [id^="cheapest-"].outline,
+  [id^="cheapest-"].outline::before,
+  [id^="cheapest-"].outline::after {
+    border-radius: 0 !important;
+  }
+</style>

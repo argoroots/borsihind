@@ -1,0 +1,14 @@
+<div class="layout layout--row layout--stretch">
+  <div class="flex flex--col flex--center-y gap--xsmall">
+    <div class="stretch flex flex--col  gap--xsmall text--center">
+      <span class="value value--tnums value--small" id="current-value" data-value-fit="true"></span>
+      <span class="label label--small" id="current-time"></span>
+    </div>
+
+    {% render "timespan", hours: 1 %}
+    {% render "timespan", hours: 2 %}
+    {% render "timespan", hours: 3 %}
+  </div>
+
+  <div id="price-chart"></div>
+</div>

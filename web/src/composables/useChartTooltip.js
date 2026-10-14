@@ -1,4 +1,5 @@
 import { h, render } from 'vue'
+import { formatCents } from '../formatCents.js'
 
 export function useChartTooltip () {
   function createTooltip (startTime, priceData, marginalValue, colors, isHourly) {
@@ -47,7 +48,7 @@ export function useChartTooltip () {
           h('span', { class: 'ml-3' }, row.value)
         ])
       ),
-      h('div', { class: 'text-center font-bold mt-2' }, total.toFixed(2))
+      h('div', { class: 'text-center font-bold mt-2' }, formatCents(total))
     ])
 
     const container = document.createElement('div')

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { GChart } from 'vue-google-charts'
 import { useChartTooltip } from './composables/useChartTooltip.js'
+import { formatCents } from './formatCents.js'
 import AppSelect from './components/AppSelect.vue'
 
 const { createTooltip } = useChartTooltip()
@@ -222,7 +223,8 @@ function findLowestTimeSpan (prices, span) {
   for (let i = 0; i < pricesSum.length - span + 1; i++) {
     const sum = pricesSum.slice(i, i + span).reduce((acc, val) => acc + val, 0)
 
-    if (sum < lowestSum) {
+    // Compare at 0.01 cent precision so equal windows keep the earliest (same as TRMNL)
+    if (Math.round(sum * 100) < Math.round(lowestSum * 100)) {
       lowestSum = sum
       lowestSumIndex = i
     }
@@ -308,7 +310,7 @@ function findLowestTimeSpan (prices, span) {
           class="mt-1 py-1 px-2 text-xs text-green-600 border rounded"
           :class="{ 'font-bold border-transparent bg-transparent': selectedLowest === x.value, 'border-green-300 bg-green-50': selectedLowest !== x.value }"
         >
-          {{ x.price.toFixed(2) }}
+          {{ formatCents(x.price) }}
         </div>
       </div>
     </div>

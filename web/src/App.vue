@@ -20,7 +20,8 @@ const intervals = [
 ]
 const blueColors = ['#1e40af', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
 const greenColors = ['#065f46', '#047857', '#059669', '#10b981', '#34d399', '#6ee7b7']
-const timeFormat = new Intl.DateTimeFormat('et-EE', { timeZone: 'Europe/Tallinn', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+// Times in the browser's time zone, so they match the visitor's clock
+const timeFormat = new Intl.DateTimeFormat('et-EE', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
 // Refs
 const selectedPlan = ref(plans.find(x => x.value === (new URLSearchParams(window.location.search).get('plan') || 'V1')))

@@ -36,12 +36,15 @@ async function getPrices () {
     console.error('Error fetching prices for next day')
   }
 
-  // Filter out past 15-minute intervals - round down to nearest 15-minute mark
+  return allEntries
+}
+
+// Drop slots that ended before the current slot of the given length
+function filterPast (prices, slotMinutes) {
   const now = new Date()
-  const minutes = now.getMinutes()
-  const roundedMinutes = Math.floor(minutes / 15) * 15
-  const currentInterval = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), roundedMinutes)
-  return allEntries.filter(entry => new Date(entry.deliveryStart) >= currentInterval)
+  const roundedMinutes = Math.floor(now.getMinutes() / slotMinutes) * slotMinutes
+  const currentSlot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), roundedMinutes)
+  return prices.filter(entry => new Date(entry.deliveryStart) >= currentSlot)
 }
 
 function aggregateToHourly (prices) {
@@ -109,27 +112,31 @@ function getGridFee (date, service = 'V4') {
 
   const day = date.getDay()
   const hours = date.getHours()
+  const month = date.getMonth()
   const today = date.toISOString().substring(0, 10)
+  const isOffDay = holidays.includes(today) || day === 0 || day === 6
+  // V5 peak prices apply only November–March
+  const isPeakSeason = month >= 10 || month <= 2
 
   switch (service) {
     case 'V1':
       return plans.V1.price
     case 'V5':
-      if (holidays.includes(today) || day === 0 || day === 6) {
-        if (hours >= 16 || hours < 20) {
+      if (isOffDay) {
+        if (isPeakSeason && hours >= 16 && hours < 20) {
           return plans.V5.nightTop
         } else {
           return plans.V5.night
         }
       } else if (hours >= 22 || hours < 7) {
         return plans.V5.night
-      } else if ([9, 10, 11, 16, 17, 18, 19].includes(hours)) {
+      } else if (isPeakSeason && [9, 10, 11, 16, 17, 18, 19].includes(hours)) {
         return plans.V5.dayTop
       } else {
         return plans.V5.day
       }
     default:
-      if (holidays.includes(today) || day === 0 || day === 6 || hours >= 22 || hours < 7) {
+      if (isOffDay || hours >= 22 || hours < 7) {
         return plans[service].night
       } else {
         return plans[service].day
@@ -195,7 +202,10 @@ export const handler = async (event) => {
     console.log('Starting electricity price import...')
 
     const plans = ['V1', 'V2', 'V4', 'V5']
-    const prices15min = await getPrices()
+    const allPrices = await getPrices()
+    // Average full hours before filtering, so the current hour isn't a partial average
+    const pricesHourly = filterPast(aggregateToHourly(allPrices), 60)
+    const prices15min = filterPast(allPrices, 15)
 
     if (prices15min.length === 0) {
       console.log('No prices data available, skipping file write')
@@ -207,8 +217,6 @@ export const handler = async (event) => {
         })
       }
     }
-
-    const pricesHourly = aggregateToHourly(prices15min)
 
     for (const plan of plans) {
       await saveJSON(prices15min, plan, '15min')

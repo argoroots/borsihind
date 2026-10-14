@@ -4,9 +4,9 @@ no_screen_padding: 'no'
 dark_mode: 'no'
 static_data: ''
 polling_verb: get
-framework_version: 3.1.8
+framework_version: 3.4.0
 serverless_language: ''
-refresh_interval_floor:
+refresh_interval_floor: ''
 polling_url: "https://borsihind.s3.eu-central-1.amazonaws.com/v2/1h/{{ plan }}.json\r\nhttps://borsihind.s3.eu-central-1.amazonaws.com/v2/15min/{{ plan }}.json"
 polling_headers: ''
 polling_body: ''
@@ -35,7 +35,7 @@ custom_fields:
 - keyname: about
   name: About This Plugin
   field_type: author_bio
-  description: Display real-time Estonian electricity prices from börsihind.ee on your TRMNL screen. View current pricing in cents per kWh including VAT, find the cheapest 1-4 hour periods for optimal energy usage, and see hourly price trends. Complete breakdown includes electricity price, transmission costs, renewable energy fees, and excise tax.
+  description: Display real-time Estonian electricity prices from börsihind.ee on your TRMNL screen. View current pricing in cents per kWh, find the cheapest 1-4 hour periods for optimal energy usage, and see hourly price trends. Complete breakdown includes electricity price, transmission costs, renewable energy fees, and excise tax.
   github_url: https://github.com/argoroots/trmnl
   learn_more_url: https://www.borsihind.ee
   email_address: argo@roots.ee
